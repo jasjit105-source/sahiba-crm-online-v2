@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Sahiba CRM Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{--bg:#F4F6F9;--s:#FFF;--s2:#F0F2F5;--bd:#E2E6ED;--bd2:#D0D5DD;--t:#1A1D23;--t2:#5F6B7A;--t3:#9AA3B0;--ac:#2563EB;--al:#EFF4FF;--gn:#16A34A;--gb:#ECFDF3;--or:#EA580C;--ob:#FFF4ED;--rd:#DC2626;--rb:#FEF2F2;--pu:#7C3AED;--pb:#F5F0FF;--go:#B45309;--gob:#FFFBEB;--r:10px;--sh:0 1px 3px rgba(0,0,0,.06)}
+*{margin:0;padding:0;box-sizing:border-box}body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--t);min-height:100vh}
+.app{max-width:1500px;margin:0 auto;padding:20px 28px}
+.hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:8px}.hdr h1{font-size:22px;font-weight:700}.hdr h1 span{color:var(--ac)}.hdr .dt{font-size:12px;color:var(--t2)}
+.hdr .ll{font-size:11px;color:var(--gn);font-weight:500}
+#upSec{display:flex;flex-direction:column;align-items:center;padding:40px 20px;gap:20px}
+.sync-box{width:100%;max-width:600px;background:var(--s);border:1px solid var(--bd);border-radius:16px;padding:30px;text-align:center;box-shadow:var(--sh)}
+.sync-box h3{font-size:17px;font-weight:600;margin-bottom:4px}.sync-box p{font-size:13px;color:var(--t2);margin-bottom:16px}
+.sync-btn{padding:12px 36px;border:none;border-radius:10px;background:#25D366;color:#fff;font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;box-shadow:var(--sh);transition:.2s}
+.sync-btn:hover:not(:disabled){background:#1DA851}.sync-btn:disabled{opacity:.5;cursor:default}
+.sync-status{margin-top:12px;font-size:12px;color:var(--t2);min-height:20px}
+.sync-progress{width:100%;height:6px;background:var(--s2);border-radius:3px;margin-top:8px;overflow:hidden;display:none}
+.sync-progress .bar{height:100%;background:var(--ac);border-radius:3px;transition:width .3s}
+.divider{display:flex;align-items:center;gap:12px;width:100%;max-width:600px;color:var(--t3);font-size:12px}.divider:before,.divider:after{content:'';flex:1;height:1px;background:var(--bd)}
+.dz{width:100%;max-width:600px;padding:30px;border:2px dashed var(--bd2);border-radius:16px;background:var(--s);text-align:center;cursor:pointer;transition:.25s}
+.dz:hover,.dz.dg{border-color:var(--ac);background:var(--al)}.dz h3{font-size:15px;font-weight:600;margin-bottom:4px}.dz p{font-size:12px;color:var(--t2);margin-bottom:12px}
+.dz .cta{display:inline-block;padding:8px 20px;background:var(--ac);color:#fff;border-radius:8px;font-weight:600;font-size:13px}
+.fi{display:none}.fs{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;justify-content:center}
+.fp{display:inline-flex;align-items:center;padding:4px 10px;border-radius:20px;font-size:10px;font-weight:500}
+.fp.ld{background:var(--gb);color:var(--gn)}.fp.ms{background:var(--rb);color:var(--rd)}.fp.bi{background:var(--al);color:var(--ac)}.fp.op{background:var(--gob);color:var(--go)}
+.rb{margin-top:14px;padding:10px 30px;border:none;border-radius:10px;background:var(--ac);color:#fff;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;box-shadow:var(--sh)}
+.rb:hover:not(:disabled){background:#1D4ED8}.rb:disabled{opacity:.4;cursor:default}
+#mainUI{display:none}
+.sr{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:14px}
+.sc{background:var(--s);border:1px solid var(--bd);border-radius:var(--r);padding:13px 15px;box-shadow:var(--sh)}
+.sc .nm{font-family:monospace;font-size:22px;font-weight:700;line-height:1}.sc .lb{font-size:10px;color:var(--t2);margin-top:3px}
+.cg .nm{color:var(--gn)}.co .nm{color:var(--or)}.cb .nm{color:var(--ac)}.cp2 .nm{color:var(--pu)}.cr .nm{color:var(--rd)}.cgo .nm{color:var(--go)}
+.nb{display:flex;gap:3px;background:var(--s);border:1px solid var(--bd);border-radius:var(--r);padding:3px;margin-bottom:14px;overflow-x:auto}
+.nv{padding:7px 13px;border-radius:7px;font-size:12px;font-weight:600;color:var(--t2);cursor:pointer;border:none;background:none;white-space:nowrap}
+.nv:hover{color:var(--t);background:var(--s2)}.nv.a{background:var(--ac);color:#fff}
+.nv .ct{margin-left:3px;padding:1px 5px;border-radius:10px;font-size:9px;background:rgba(0,0,0,.08)}.nv.a .ct{background:rgba(255,255,255,.25)}
+.tb{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+.sb{flex:1;min-width:160px;max-width:320px;padding:7px 11px;border:1px solid var(--bd);border-radius:8px;background:var(--s);font-family:inherit;font-size:12px;outline:none}.sb:focus{border-color:var(--ac)}
+.tr{margin-left:auto;display:flex;gap:6px}
+.bs{padding:6px 13px;border:1px solid var(--bd);border-radius:7px;background:var(--s);font-family:inherit;font-size:12px;font-weight:500;cursor:pointer}.bs:hover{background:var(--s2)}
+.bgn{background:var(--gn);color:#fff;border-color:var(--gn)}.bac{background:var(--ac);color:#fff;border-color:var(--ac)}
+.bwa{background:#25D366;color:#fff;border-color:#25D366}.bwa:hover{background:#1DA851}
+.bsy{background:#7C3AED;color:#fff;border-color:#7C3AED}.bsy:hover{background:#6D28D9}
+.tw{background:var(--s);border:1px solid var(--bd);border-radius:var(--r);box-shadow:var(--sh);overflow:auto;max-height:calc(100vh - 310px)}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead th{position:sticky;top:0;z-index:10;background:#F8F9FB;border-bottom:2px solid var(--bd);padding:7px 10px;text-align:left;font-weight:600;color:var(--t2);font-size:10px;text-transform:uppercase;white-space:nowrap;cursor:pointer;user-select:none}
+tbody td{padding:7px 10px;border-bottom:1px solid var(--bd);vertical-align:middle;white-space:nowrap}tbody tr:hover{background:#F8FAFD}
+.cn{font-weight:600}.cfn{font-family:monospace;font-size:10px;color:var(--t2)}
+.cs{font-family:monospace;font-weight:600;padding:2px 7px;border-radius:5px;font-size:10px;display:inline-block;min-width:40px;text-align:center}
+.sh2{background:var(--gb);color:var(--gn)}.sm2{background:var(--ob);color:var(--or)}.sl2{background:var(--s2);color:var(--t3)}
+.bd{display:inline-block;font-size:9px;padding:2px 6px;border-radius:4px;font-weight:600;margin-right:2px}
+.bc{background:var(--al);color:var(--ac)}.bw{background:var(--gob);color:var(--go)}.bp{background:var(--rb);color:var(--rd)}.ba{background:var(--s2);color:var(--t2)}
+.b1{background:var(--rb);color:var(--rd)}.b2{background:var(--ob);color:var(--or)}.b3{background:var(--gob);color:var(--go)}.br{background:var(--gb);color:var(--gn)}
+.cm{max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--t2);font-size:10px}
+.em{text-align:center;padding:40px 20px;color:var(--t2)}.em .ei{font-size:32px;margin-bottom:6px}
+.rc{font-size:11px;color:var(--t2);margin-top:6px}
+.pn{display:none}.pn.av{display:block}
+.ac{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px}
+.acd{background:var(--s);border:2px solid var(--bd);border-radius:var(--r);padding:14px;box-shadow:var(--sh);cursor:pointer;transition:.2s}
+.acd:hover{border-color:var(--ac);box-shadow:var(--sh),0 0 0 2px var(--al)}.acd.sel{border-color:var(--ac);background:var(--al)}
+.acd h3{font-size:14px;font-weight:700;margin-bottom:3px}.acd .ap{font-family:monospace;font-size:10px;color:var(--t2)}
+.acd .as{display:flex;gap:10px;margin-top:8px}.acd .as span{display:flex;flex-direction:column;align-items:center}
+.acd .as .an{font-family:monospace;font-size:16px;font-weight:700}.acd .as .al2{font-size:9px;color:var(--t2)}
+.agHdr td{background:var(--al)!important;padding:8px 12px!important;font-size:13px;border-bottom:2px solid var(--ac)!important}
+.le{background:var(--s);border:1px solid var(--bd);border-radius:7px;padding:10px 14px;margin-bottom:6px}
+.le .lt{font-family:monospace;font-size:10px;color:var(--t3)}.le .la{font-weight:600;color:var(--ac)}.le .lb2{font-size:11px;color:var(--t2);margin-top:3px}
+</style>
+</head>
+<body>
+<div class="app">
+<div class="hdr"><h1>👗 Sahiba <span>CRM</span></h1><span class="dt" id="dtL"></span><span class="ll" id="ll"></span></div>
+<div id="upSec" style="display:none">
+<div style="max-width:620px;margin:0 auto;display:flex;flex-direction:column;gap:18px">
+
+<div style="text-align:center;padding:14px 0 4px">
+<h2 style="font-size:20px;font-weight:800;color:var(--t);margin-bottom:4px">👗 Sahiba CRM</h2>
+<p style="font-size:13px;color:var(--t2)">Lead Management Dashboard</p>
+</div>
+
+<div style="background:var(--s);border:1px solid var(--bd);border-radius:14px;padding:24px;box-shadow:var(--sh)">
+<div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
+<div style="width:42px;height:42px;background:linear-gradient(135deg,#22c55e,#16a34a);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff">📊</div>
+<div><h3 style="font-size:15px;font-weight:700;margin-bottom:2px">Load Existing Data</h3>
+<p style="font-size:12px;color:var(--t2);margin:0">Data persists in the database until you upload new files</p></div>
+</div>
+<button class="sync-btn" id="loadCloudBtn" style="width:100%;font-size:14px;padding:13px 24px;background:linear-gradient(135deg,#22c55e,#16a34a);border-radius:10px;font-weight:700">🔄 Load Data</button>
+<div class="sync-status" id="syncSt" style="margin-top:12px"></div>
+<div class="sync-progress" id="syncProg"><div class="bar" id="syncBar" style="width:0%"></div></div>
+</div>
+
+<div style="display:flex;align-items:center;gap:12px;color:var(--t3);font-size:11px;text-transform:uppercase;letter-spacing:1px"><div style="flex:1;height:1px;background:var(--bd)"></div>Upload New Data<div style="flex:1;height:1px;background:var(--bd)"></div></div>
+
+<div style="background:var(--s);border:1px solid var(--bd);border-radius:14px;padding:24px;box-shadow:var(--sh)">
+<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+<div style="width:42px;height:42px;background:linear-gradient(135deg,#2563EB,#1d4ed8);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff">📤</div>
+<div><h3 style="font-size:15px;font-weight:700;margin-bottom:2px">Upload from Respond.io</h3>
+<p style="font-size:12px;color:var(--t2);margin:0">New contacts will be flagged with 🆕</p></div>
+</div>
+<div class="dz" id="dz" style="border-radius:10px;padding:18px;margin-bottom:14px"><h3 style="font-size:13px;margin-bottom:4px">📂 Drop Contacts + Messages CSVs</h3><p style="font-size:11px;margin:0">Export from Respond.io</p><div class="cta" style="font-size:12px;padding:6px 16px;margin-top:8px">Choose Files</div></div>
+<input type="file" id="fIn" class="fi" multiple accept=".csv">
+<div class="fs" id="fSt" style="margin-bottom:12px"></div>
+<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:8px 12px;background:var(--s2);border-radius:8px">
+<label style="font-size:12px;font-weight:600;color:var(--t2)">📅 Window:</label>
+<select id="daysSel" style="padding:5px 10px;border-radius:7px;border:1px solid var(--bd);font-size:13px;font-weight:700;background:var(--s);cursor:pointer">
+<option value="1">1 day</option>
+<option value="2" selected>2 days</option>
+<option value="3">3 days</option>
+<option value="5">5 days</option>
+<option value="7">7 days</option>
+<option value="10">10 days</option>
+<option value="14">14 days</option>
+<option value="30">30 days</option>
+</select>
+</div>
+<div style="display:flex;gap:10px">
+<button class="rb" id="rBn" disabled style="flex:1;border-radius:10px;font-size:13px">▶ Build Locally</button>
+<button class="rb" id="uploadBtn" disabled style="flex:1;border-radius:10px;background:linear-gradient(135deg,#2563EB,#1d4ed8);font-size:13px">📤 Upload & Update</button>
+</div>
+<div class="sync-status" id="uploadSt" style="margin-top:10px"></div>
+</div>
+
+</div>
+</div>
+<div id="mainUI" style="display:none">
+<div class="sr" id="sR"></div>
+<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;padding:8px 14px;background:var(--s);border-radius:10px;border:1px solid var(--bd)">
+<span style="font-size:12px;font-weight:600;color:var(--t2)">📅 Window:</span>
+<select id="daysSelMain" style="padding:4px 10px;border-radius:6px;border:1px solid var(--bd);font-size:13px;font-weight:700;background:var(--s);color:var(--t1);cursor:pointer">
+<option value="1">1 day</option>
+<option value="2">2 days</option>
+<option value="3">3 days</option>
+<option value="5">5 days</option>
+<option value="7">7 days</option>
+<option value="10">10 days</option>
+<option value="14">14 days</option>
+<option value="30">30 days</option>
+</select>
+<button id="rebuildBtn" style="padding:4px 14px;border-radius:6px;border:1px solid var(--ac);background:var(--ac);color:#fff;font-size:12px;font-weight:700;cursor:pointer">🔄 Rebuild</button>
+<span id="daysInfo" style="font-size:11px;color:var(--t2)"></span>
+</div>
+<div class="nb" id="nB"></div>
+<div class="pn" id="pReports"><div class="tb"><div style="display:flex;gap:3px" id="rTabs"></div><input type="text" class="sb" id="rSch" placeholder="Search..."><div class="tr"><button class="bs bgn" id="exBtn">⬇ Excel</button><button class="bs bsy" id="rsBtn">🔄 Re-Sync</button><button class="bs bac" id="nwBtn">📂 New Data</button></div></div><div class="tw" id="rTbl"></div><div class="rc" id="rCnt"></div></div>
+<div class="pn" id="pAgents"><div class="ac" id="aCds"></div><div class="tb"><input type="text" class="sb" id="aSch" placeholder="Search tasks..."><div class="tr"><span id="agFilt" style="font-size:12px;color:var(--ac);font-weight:600"></span><button class="bs" id="agAll" style="display:none">Show All</button><button class="bs bgn" id="agDl" style="display:none">⬇ Download</button><button class="bs bwa" id="agWa" style="display:none">📱 WhatsApp</button></div></div><div class="tw" id="aTbl"></div><div class="rc" id="aCnt"></div></div>
+<div class="pn" id="pWatchlist"><div class="tb"><input type="text" class="sb" id="wSch" placeholder="Search watchlist..."></div><div class="tw" id="wTbl"></div><div class="rc" id="wCnt"></div></div>
+<div class="pn" id="pLog"><div class="tb"><input type="text" class="sb" id="lSch" placeholder="Search log..."><div class="tr"><button class="bs bgn" id="exLBtn">⬇ Export Log</button></div></div><div id="lEnt"></div></div>
+<div class="pn" id="pPerformance"><div id="perfContent"></div></div>
+<div class="pn" id="pCalllist"><div class="tb"><input type="text" class="sb" id="clSch" placeholder="Search call list..."><div class="tr"><button class="bs bgn" id="clDl">⬇ Download Call List</button></div></div><div id="clSummary"></div><div class="tw" id="clTbl"></div><div class="rc" id="clCnt"></div></div>
+<div class="pn" id="pNancycl"><div class="tb"><input type="text" class="sb" id="ncSch" placeholder="Search Nancy call list..."><div class="tr"><button class="bs bgn" id="ncDl">⬇ Download Nancy List</button></div></div><div id="ncSummary"></div><div class="tw" id="ncTbl"></div><div class="rc" id="ncCnt"></div></div>
+<div class="pn" id="pJazmincl"><div class="tb"><input type="text" class="sb" id="jcSch" placeholder="Search Jazmin call list..."><div class="tr"><button class="bs bgn" id="jcDl">⬇ Download Jazmin List</button></div></div><div id="jcSummary"></div><div class="tw" id="jcTbl"></div><div class="rc" id="jcCnt"></div></div>
+<div class="pn" id="pYoanacl"><div class="tb"><input type="text" class="sb" id="ycSch" placeholder="Search Yoana call list..."><div class="tr"><button class="bs bgn" id="ycDl">⬇ Download Yoana List</button></div></div><div id="ycSummary"></div><div class="tw" id="ycTbl"></div><div class="rc" id="ycCnt"></div></div>
+<div class="pn" id="pMap"><div id="mapContent" style="background:var(--s);border:1px solid var(--bd);border-radius:var(--r);padding:20px;box-shadow:var(--sh)"><div id="mapChart" style="width:100%;height:500px"></div><div id="mapLegend" style="margin-top:14px"></div></div></div>
+<div class="pn" id="pUploadlog"><div class="tb"><div style="font-size:14px;color:var(--t1);font-weight:700">📜 Upload History</div><div class="tr"><button class="bs bsy" id="ulRf">🔄 Refresh</button></div></div><div id="ulContent" style="margin-top:14px"></div></div>
+</div>
+</div>
+<script>
+// ══════ CSV UPLOAD (primary) + API SYNC (optional) ══════
+var API_BASE='/api';
+
+// ═══ ADMIN / AGENT VIEW GATE ═══
+// URL ?v=nancy|jazmin|yoana → agent view (read-only, no upload)
+// otherwise → admin view (requires password 1993, can upload)
+var URL_PARAMS=new URLSearchParams(window.location.search);
+var VIEW_MODE=(URL_PARAMS.get('v')||'').toLowerCase();// 'nancy', 'jazmin', 'yoana', or ''
+var IS_ADMIN=!VIEW_MODE;
+var APP_TOKEN='sahiba2026';// matches Netlify env var
+
+if(IS_ADMIN){
+  var stored=localStorage.getItem('sahiba_admin_pass');
+  if(stored!=='1993'){
+    var pass=prompt('Admin Password (Jessie only):');
+    if(pass!=='1993'){
+      document.body.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;color:#dc2626;font-size:18px">Access Denied</div>';
+      throw new Error('access_denied');
+    }
+    localStorage.setItem('sahiba_admin_pass','1993');
+  }
+}else{
+  // Agent view: hide upload UI after page loads
+  setTimeout(function(){
+    var hide=function(sel){var el=document.querySelector(sel);if(el)el.style.display='none'};
+    hide('#uploadBtn');hide('#dz');hide('#fIn');
+    // Add a banner showing which agent
+    var name=VIEW_MODE.charAt(0).toUpperCase()+VIEW_MODE.slice(1);
+    document.title='Sahiba CRM — '+name;
+    var ll=document.getElementById('ll');
+    if(ll)ll.innerHTML='👤 '+name+' • '+ll.textContent;
+  },500);
+}
+
+// Wrapper for fetch that adds auth on admin endpoints
+function apiPost(path,body){
+  var opts={method:'POST',headers:{'Content-Type':'application/json'}};
+  // Upload requires APP_TOKEN; checkin/data don't
+  if(path.indexOf('/upload')>=0||path.indexOf('/query')>=0||path.indexOf('/sales-sync')>=0){
+    opts.headers['Authorization']='Bearer '+APP_TOKEN;
+  }
+  if(body)opts.body=JSON.stringify(body);
+  return fetch(API_BASE+path,opts);
+}
+
+// ═══ AGENT CHECK-IN SYSTEM ═══
+var _checkedIn={};// track checked leads this session: {contactId: {action,ts}}
+function logCheckIn(lead,action,notes){
+  var key=lead.id+'_'+action;
+  _checkedIn[key]={action:action,ts:Date.now()};
+  fetch(API_BASE+'/checkin',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({agent:lead.ag||'Unassigned',name:lead.nm||'',phone:lead.ph||'',
+      contactId:lead.id||'',action:action,notes:notes||'',score:lead.buyScore||lead.sc||'',
+      priority:lead.pr||'',city:lead.cy||'',lifecycle:lead.lc||''})
+  }).then(function(r){return r.json()}).then(function(d){
+    console.log('✅ Logged:',action,lead.nm);
+  }).catch(function(e){console.error('Log error:',e)});
+}
+function checkInBtns(lead){
+  var id=lead.id;
+  var done=_checkedIn[id+'_✅ Called']||_checkedIn[id+'_💬 Messaged']||_checkedIn[id+'_❌ No Answer']||_checkedIn[id+'_📅 Callback'];
+  if(done)return'<div style="text-align:center;cursor:pointer" class="ckDone" data-id="'+id+'" data-nm="'+(lead.nm||'').replace(/"/g,'&quot;')+'" data-ph="'+(lead.ph||'')+'" data-ag="'+(lead.ag||'')+'" data-sc="'+(lead.buyScore||lead.sc||'')+'" data-pr="'+(lead.pr||'')+'" data-cy="'+(lead.cy||'')+'" data-lc="'+(lead.lc||'')+'" title="Click to edit or redo"><span style="background:#dcfce7;color:#166534;padding:2px 6px;border-radius:5px;font-size:9px;font-weight:700">'+done.action+'</span>'+(done.notes?'<div style="font-size:8px;color:#6b7280;margin-top:2px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+done.notes.replace(/"/g,'&quot;')+'">📝 '+done.notes+'</div>':'')+'<div style="font-size:7px;color:#9ca3af;margin-top:1px">tap to edit</div></div>';
+  return'<div style="display:flex;gap:2px;flex-wrap:wrap" class="ckBtns" data-id="'+id+'" data-nm="'+(lead.nm||'').replace(/"/g,'&quot;')+'" data-ph="'+(lead.ph||'')+'" data-ag="'+(lead.ag||'')+'" data-sc="'+(lead.buyScore||lead.sc||'')+'" data-pr="'+(lead.pr||'')+'" data-cy="'+(lead.cy||'')+'" data-lc="'+(lead.lc||'')+'">'+
+    '<button class="ckB" data-act="✅ Called" style="background:#22c55e;color:#fff;border:0;padding:2px 5px;border-radius:4px;font-size:9px;cursor:pointer;font-weight:700" title="Called">✅</button>'+
+    '<button class="ckB" data-act="💬 Messaged" style="background:#25d366;color:#fff;border:0;padding:2px 5px;border-radius:4px;font-size:9px;cursor:pointer;font-weight:700" title="Messaged">💬</button>'+
+    '<button class="ckB" data-act="❌ No Answer" style="background:#ef4444;color:#fff;border:0;padding:2px 5px;border-radius:4px;font-size:9px;cursor:pointer;font-weight:700" title="No Answer">❌</button>'+
+    '<button class="ckB" data-act="📅 Callback" style="background:#3b82f6;color:#fff;border:0;padding:2px 5px;border-radius:4px;font-size:9px;cursor:pointer;font-weight:700" title="Callback Later">📅</button>'+
+    '</div>';
+}
+function bindCheckIns(container){
+  // Bind new check-in buttons
+  (container||document).querySelectorAll('.ckBtns').forEach(function(wrap){
+    wrap.querySelectorAll('.ckB').forEach(function(btn){
+      btn.onclick=function(e){
+        e.stopPropagation();
+        var act=btn.dataset.act;
+        var w=btn.closest('.ckBtns');
+        var lead={id:w.dataset.id,nm:w.dataset.nm,ph:w.dataset.ph,ag:w.dataset.ag,
+          buyScore:w.dataset.sc,pr:w.dataset.pr,cy:w.dataset.cy,lc:w.dataset.lc};
+        var notes=prompt('📝 Comment for '+lead.nm+':\n(What happened? What did they say?)')||'';
+        logCheckIn(lead,act,notes);
+        var key=lead.id+'_'+act;
+        _checkedIn[key]={action:act,ts:Date.now(),notes:notes};
+        w.outerHTML=checkInBtns(Object.assign(lead,{id:lead.id}));
+        bindCheckIns(w.parentElement);
+      };
+    });
+  });
+  // Bind "tap to edit" on already-checked items → resets to buttons
+  (container||document).querySelectorAll('.ckDone').forEach(function(done){
+    done.onclick=function(e){
+      e.stopPropagation();
+      var id=done.dataset.id;
+      // Clear all check-ins for this lead
+      Object.keys(_checkedIn).forEach(function(k){if(k.startsWith(id+'_'))delete _checkedIn[k]});
+      var lead={id:id,nm:done.dataset.nm,ph:done.dataset.ph,ag:done.dataset.ag,
+        buyScore:done.dataset.sc,pr:done.dataset.pr,cy:done.dataset.cy,lc:done.dataset.lc};
+      done.outerHTML=checkInBtns(lead);
+      bindCheckIns(done.parentElement);
+    };
+  });
+}
+// Load pre-synced data from Google Sheets (instant — syncs every 4 hours)
+async function loadFromDB(){
+  var st=document.getElementById('syncSt'),btn=document.getElementById('loadCloudBtn');
+  btn.disabled=true;btn.textContent='⏳ Loading...';
+  st.innerHTML='📡 Loading data from database...';
+  try{
+    var r=await fetch(API_BASE+'/data');
+    var data=await r.json();
+    if(data.status!=='ok'||!data.contactsCSV){
+      st.innerHTML='⚠️ No data yet. Upload Contacts + Messages CSVs to get started.';
+      btn.textContent='🔄 Load Data';btn.disabled=false;return;
+    }
+    st.innerHTML='📊 Parsing '+data.contactCount+' contacts, '+data.messageCount+' messages...';
+    function fullParseCSV(txt){var results=[],row=[],field='',inQ=false;for(var i=0;i<txt.length;i++){var c=txt[i];if(c==='"'){if(inQ&&txt[i+1]==='"'){field+='"';i++}else{inQ=!inQ}}else if(c===','&&!inQ){row.push(field);field=''}else if((c==='\n'||(c==='\r'&&txt[i+1]==='\n'))&&!inQ){if(c==='\r')i++;row.push(field);results.push(row);row=[];field=''}else{field+=c}}if(field||row.length)row.push(field);if(row.length)results.push(row);return results}
+    function csvToObjects(txt){var rows=fullParseCSV(txt);if(rows.length<2)return[];var hdr=rows[0];var objs=[];for(var i=1;i<rows.length;i++){var o={};for(var j=0;j<hdr.length;j++){o[hdr[j]]=rows[i][j]||''}objs.push(o)}return objs}
+    var cRows=csvToObjects(data.contactsCSV||'');
+    var mRows=csvToObjects(data.messagesCSV||'');
+    if(typeof _lastC!=='undefined'){_lastC=cRows;_lastM=mRows;_lastV=[]}
+    buildCRM(cRows,mRows,[]);
+    var newBadge=data.newContactCount>0?' | <span style="color:var(--or);font-weight:700">🆕 '+data.newContactCount+' new contacts</span>':'';
+    var syncDate=data.lastUpload?new Date(data.lastUpload).toLocaleString('es-MX',{timeZone:'America/Mexico_City'}):'—';
+    st.innerHTML='<b style="color:var(--gn)">✅ '+cRows.length+' contacts, '+mRows.length+' messages</b>'+newBadge+'<br><span style="font-size:11px;color:var(--t2)">Last upload: '+syncDate+'</span>';
+    btn.textContent='🔄 Load Data';btn.disabled=false;
+  }catch(e){
+    st.innerHTML='❌ '+e.message;btn.textContent='🔄 Load Data';btn.disabled=false;
+  }
+}
+
+// CHUNKED UPLOAD — splits the messages CSV into ~3 MB chunks, each chunk
+// includes the header row so the server can parse it independently.
+// Contacts CSV is small enough to upload in one shot.
+async function uploadToNeon(){
+  var btn=document.getElementById('uploadBtn'),st=document.getElementById('uploadSt');
+  if(!fl.c||!fl.m){alert('Upload Contacts + Messages files first');return}
+  btn.disabled=true;btn.textContent='⏳ Uploading...';
+  st.innerHTML='📤 Reading files...';
+
+  function readFile(f){return new Promise(function(res,rej){var r=new FileReader();r.onload=function(e){res(e.target.result)};r.onerror=rej;r.readAsText(f)})}
+  function genUploadId(){return 'up_'+Date.now()+'_'+Math.random().toString(36).slice(2,8)}
+
+  // Split a CSV string into chunks of ~maxBytes, each prefixed with the header row.
+  // Splits on row boundaries — never breaks a row in half.
+  function splitCsvIntoChunks(csv, maxBytes){
+    var firstNL=csv.indexOf('\n');
+    if(firstNL<0)return[csv];
+    var header=csv.slice(0,firstNL+1);// includes the newline
+    var body=csv.slice(firstNL+1);
+    if(body.length<=maxBytes-header.length){return[header+body]}
+    var chunks=[];
+    var pos=0;
+    while(pos<body.length){
+      var end=Math.min(pos+maxBytes-header.length,body.length);
+      // Walk back to nearest newline so we don't split a row mid-line.
+      // (CSV with quoted-newline edge case: rare in Respond.io exports)
+      if(end<body.length){
+        var back=body.lastIndexOf('\n',end);
+        if(back>pos)end=back+1;
+      }
+      chunks.push(header+body.slice(pos,end));
+      pos=end;
+    }
+    return chunks;
+  }
+
+  try{
+    var cTxt=await readFile(fl.c);
+    var mTxt=await readFile(fl.m);
+    var uploadId=genUploadId();
+
+    // === PHASE 1: contacts (single shot) ===
+    st.innerHTML='☁️ Uploading contacts ('+(cTxt.length/1024/1024).toFixed(1)+' MB)...';
+    var cRes=await apiPost('/upload',{kind:'contacts',csv:cTxt,uploadId:uploadId});
+    var cData=await cRes.json();
+    if(cData.status!=='ok'){
+      throw new Error('Contacts upload failed: '+(cData.error||'unknown'));
+    }
+
+    // === PHASE 2: messages (chunked) ===
+    var CHUNK_SIZE=3*1024*1024;// 3 MB per chunk (well under Netlify's 6 MB limit)
+    var chunks=splitCsvIntoChunks(mTxt,CHUNK_SIZE);
+    var totalChunks=chunks.length;
+    var totalInserted=0,totalSkipped=0;
+
+    for(var i=0;i<chunks.length;i++){
+      var pct=Math.round(((i+1)/chunks.length)*100);
+      st.innerHTML='☁️ Uploading messages — chunk '+(i+1)+' / '+totalChunks+' ('+pct+'%)... '+
+        '<div style="background:#e5e7eb;border-radius:4px;height:6px;overflow:hidden;margin-top:6px"><div style="background:var(--gn);height:100%;width:'+pct+'%;transition:width .3s"></div></div>';
+      var mRes=await apiPost('/upload',{
+        kind:'messages',
+        csv:chunks[i],
+        chunkIndex:i,
+        totalChunks:totalChunks,
+        uploadId:uploadId
+      });
+      var mData=await mRes.json();
+      if(mData.status!=='ok'){
+        throw new Error('Messages chunk '+(i+1)+' failed: '+(mData.error||'unknown'));
+      }
+      totalInserted+=mData.rowsInserted||0;
+      totalSkipped+=mData.rowsSkipped||0;
+    }
+
+    var newBadge=cData.newContacts>0?' | <span style="color:var(--or);font-weight:700">🆕 '+cData.newContacts+' NEW contacts</span>':'';
+    st.innerHTML='<b style="color:var(--gn)">✅ Uploaded! '+cData.rows+' contacts, '+totalInserted+' new messages</b>'+
+      ' <span style="color:var(--t2);font-size:11px">('+totalSkipped+' duplicates skipped, '+totalChunks+' chunks)</span>'+newBadge;
+    btn.textContent='📤 Upload & Update';btn.disabled=false;
+
+    // Auto-load the dashboard
+    WD=parseInt(document.getElementById('daysSel').value);
+    loadFromDB();
+  }catch(e){
+    console.error(e);
+    st.innerHTML='❌ '+e.message;btn.textContent='📤 Upload & Update';btn.disabled=false;
+  }
+}
+
+document.getElementById('loadCloudBtn').onclick=loadFromDB;
+document.getElementById('uploadBtn').onclick=uploadToNeon;
+document.getElementById('rsBtn').onclick=function(){
+  document.getElementById('upSec').style.display='flex';
+  document.getElementById('mainUI').style.display='none';
+  loadFromDB();
+};
+
+
+const LR={"222": ["Puebla", "Puebla"], "223": ["Puebla", "Puebla"], "224": ["Puebla", "Puebla"], "225": ["Xalapa", "Veracruz"], "226": ["Xalapa", "Veracruz"], "227": ["Puebla", "Puebla"], "228": ["Xalapa", "Veracruz"], "229": ["Xalapa", "Veracruz"], "231": ["Puebla", "Puebla"], "232": ["Xalapa", "Veracruz"], "233": ["Puebla", "Puebla"], "235": ["Xalapa", "Veracruz"], "236": ["Puebla", "Puebla"], "237": ["Puebla", "Puebla"], "238": ["Puebla", "Puebla"], "241": ["Tlaxcala", "Tlaxcala"], "243": ["Puebla", "Puebla"], "244": ["Puebla", "Puebla"], "245": ["Puebla", "Puebla"], "246": ["Tlaxcala", "Tlaxcala"], "247": ["Tlaxcala", "Tlaxcala"], "248": ["Puebla", "Puebla"], "249": ["Puebla", "Puebla"], "271": ["Xalapa", "Veracruz"], "272": ["Xalapa", "Veracruz"], "273": ["Xalapa", "Veracruz"], "274": ["Oaxaca de Ju�rez", "Oaxaca"], "275": ["Puebla", "Puebla"], "276": ["Puebla", "Puebla"], "278": ["Xalapa", "Veracruz"], "279": ["Xalapa", "Veracruz"], "281": ["Oaxaca de Ju�rez", "Oaxaca"], "282": ["Xalapa", "Veracruz"], "283": ["Xalapa", "Veracruz"], "284": ["Xalapa", "Veracruz"], "285": ["Xalapa", "Veracruz"], "287": ["Oaxaca de Ju�rez", "Oaxaca"], "288": ["Xalapa", "Veracruz"], "294": ["Xalapa", "Veracruz"], "296": ["Xalapa", "Veracruz"], "297": ["Xalapa", "Veracruz"], "311": ["Tepic", "Nayarit"], "312": ["Colima", "Colima"], "313": ["Colima", "Colima"], "314": ["Colima", "Colima"], "315": ["Guadalajara", "Jalisco"], "316": ["Guadalajara", "Jalisco"], "317": ["Guadalajara", "Jalisco"], "319": ["Tepic", "Nayarit"], "321": ["Guadalajara", "Jalisco"], "322": ["Guadalajara", "Jalisco"], "323": ["Tepic", "Nayarit"], "324": ["Tepic", "Nayarit"], "325": ["Tepic", "Nayarit"], "326": ["Guadalajara", "Jalisco"], "327": ["Tepic", "Nayarit"], "328": ["Morelia", "Michoacn"], "329": ["Tepic", "Nayarit"], "33": ["Guadalajara", "Jalisco"], "341": ["Guadalajara", "Jalisco"], "342": ["Guadalajara", "Jalisco"], "343": ["Guadalajara", "Jalisco"], "344": ["Guadalajara", "Jalisco"], "345": ["Guadalajara", "Jalisco"], "346": ["Zacatecas", "Zacatecas"], "347": ["Guadalajara", "Jalisco"], "348": ["Guadalajara", "Jalisco"], "349": ["Guadalajara", "Jalisco"], "351": ["Morelia", "Michoacn"], "352": ["Morelia", "Michoacn"], "353": ["Morelia", "Michoacn"], "354": ["Morelia", "Michoacn"], "355": ["Morelia", "Michoacn"], "356": ["Morelia", "Michoacn"], "357": ["Guadalajara", "Jalisco"], "358": ["Guadalajara", "Jalisco"], "359": ["Morelia", "Michoacn"], "371": ["Guadalajara", "Jalisco"], "372": ["Guadalajara", "Jalisco"], "373": ["Guadalajara", "Jalisco"], "374": ["Guadalajara", "Jalisco"], "375": ["Guadalajara", "Jalisco"], "376": ["Guadalajara", "Jalisco"], "377": ["Guadalajara", "Jalisco"], "378": ["Guadalajara", "Jalisco"], "381": ["Morelia", "Michoacn"], "382": ["Guadalajara", "Jalisco"], "383": ["Morelia", "Michoacn"], "384": ["Guadalajara", "Jalisco"], "385": ["Guadalajara", "Jalisco"], "386": ["Guadalajara", "Jalisco"], "387": ["Guadalajara", "Jalisco"], "388": ["Guadalajara", "Jalisco"], "389": ["Tepic", "Nayarit"], "391": ["Guadalajara", "Jalisco"], "392": ["Guadalajara", "Jalisco"], "393": ["Guadalajara", "Jalisco"], "394": ["Morelia", "Michoacn"], "395": ["Guadalajara", "Jalisco"], "411": ["Guanajuato", "Guanajuato"], "412": ["Guanajuato", "Guanajuato"], "413": ["Guanajuato", "Guanajuato"], "414": ["Santiago de Queretaror", "Querétaro"], "415": ["Guanajuato", "Guanajuato"], "417": ["Guanajuato", "Guanajuato"], "418": ["Guanajuato", "Guanajuato"], "419": ["Guanajuato", "Guanajuato"], "421": ["Guanajuato", "Guanajuato"], "422": ["Morelia", "Michoacn"], "423": ["Morelia", "Michoacn"], "424": ["Morelia", "Michoacn"], "425": ["Morelia", "Michoacn"], "426": ["Morelia", "Michoacn"], "427": ["Santiago de Queretaror", "Querétaro"], "428": ["Guanajuato", "Guanajuato"], "429": ["Guanajuato", "Guanajuato"], "431": ["Guadalajara", "Jalisco"], "432": ["Guanajuato", "Guanajuato"], "433": ["Zacatecas", "Zacatecas"], "434": ["Morelia", "Michoacn"], "435": ["Morelia", "Michoacn"], "436": ["Morelia", "Michoacn"], "437": ["Guadalajara", "Jalisco"], "438": ["Morelia", "Michoacn"], "441": ["Santiago de Queretaror", "Querétaro"], "442": ["Santiago de Queretaror", "Querétaro"], "443": ["Morelia", "Michoacn"], "444": ["San Luis Potos", "San Luis Potos"], "445": ["Guanajuato", "Guanajuato"], "447": ["Morelia", "Michoacn"], "448": ["Santiago de Queretaror", "Querétaro"], "449": ["Aguascalientes", "Aguascalientes"], "451": ["Morelia", "Michoacn"], "452": ["Morelia", "Michoacn"], "453": ["Morelia", "Michoacn"], "454": ["Morelia", "Michoacn"], "455": ["Morelia", "Michoacn"], "456": ["Guanajuato", "Guanajuato"], "457": ["Zacatecas", "Zacatecas"], "458": ["Zacatecas", "Zacatecas"], "459": ["Morelia", "Michoacn"], "461": ["Guanajuato", "Guanajuato"], "462": ["Guanajuato", "Guanajuato"], "463": ["Zacatecas", "Zacatecas"], "464": ["Guanajuato", "Guanajuato"], "465": ["Aguascalientes", "Aguascalientes"], "466": ["Guanajuato", "Guanajuato"], "467": ["Zacatecas", "Zacatecas"], "468": ["Guanajuato", "Guanajuato"], "469": ["Guanajuato", "Guanajuato"], "471": ["Morelia", "Michoacn"], "472": ["Guanajuato", "Guanajuato"], "473": ["Guanajuato", "Guanajuato"], "474": ["Guadalajara", "Jalisco"], "475": ["Guadalajara", "Jalisco"], "476": ["Guanajuato", "Guanajuato"], "477": ["Guanajuato", "Guanajuato"], "478": ["Zacatecas", "Zacatecas"], "481": ["San Luis Potos", "San Luis Potos"], "482": ["San Luis Potos", "San Luis Potos"], "483": ["San Luis Potos", "San Luis Potos"], "485": ["San Luis Potos", "San Luis Potos"], "486": ["San Luis Potos", "San Luis Potos"], "487": ["San Luis Potos", "San Luis Potos"], "488": ["San Luis Potos", "San Luis Potos"], "489": ["San Luis Potos", "San Luis Potos"], "492": ["Zacatecas", "Zacatecas"], "493": ["Zacatecas", "Zacatecas"], "494": ["Zacatecas", "Zacatecas"], "495": ["Aguascalientes", "Aguascalientes"], "496": ["Zacatecas", "Zacatecas"], "498": ["Zacatecas", "Zacatecas"], "499": ["Zacatecas", "Zacatecas"], "55": ["Toluca de Lerdo", "Estado de México"], "588": ["Toluca de Lerdo", "Estado de México"], "591": ["Toluca de Lerdo", "Estado de México"], "592": ["Toluca de Lerdo", "Estado de México"], "593": ["Toluca de Lerdo", "Estado de México"], "594": ["Toluca de Lerdo", "Estado de México"], "595": ["Toluca de Lerdo", "Estado de México"], "596": ["Toluca de Lerdo", "Estado de México"], "597": ["Toluca de Lerdo", "Estado de México"], "599": ["Toluca de Lerdo", "Estado de México"], "612": ["La Paz", "Baja California Sur"], "613": ["La Paz", "Baja California Sur"], "614": ["Chihuahua", "Chihuahua"], "615": ["La Paz", "Baja California Sur"], "616": ["Mexicali", "Baja California"], "618": ["Durango", "Durango"], "621": ["Chihuahua", "Chihuahua"], "622": ["Hermosillo", "Sonora"], "623": ["Hermosillo", "Sonora"], "624": ["La Paz", "Baja California Sur"], "625": ["Chihuahua", "Chihuahua"], "626": ["Chihuahua", "Chihuahua"], "627": ["Chihuahua", "Chihuahua"], "628": ["Chihuahua", "Chihuahua"], "629": ["Chihuahua", "Chihuahua"], "631": ["Hermosillo", "Sonora"], "632": ["Hermosillo", "Sonora"], "633": ["Hermosillo", "Sonora"], "634": ["Hermosillo", "Sonora"], "635": ["Chihuahua", "Chihuahua"], "636": ["Chihuahua", "Chihuahua"], "637": ["Hermosillo", "Sonora"], "638": ["Hermosillo", "Sonora"], "639": ["Chihuahua", "Chihuahua"], "641": ["Hermosillo", "Sonora"], "642": ["Hermosillo", "Sonora"], "643": ["Hermosillo", "Sonora"], "644": ["Hermosillo", "Sonora"], "645": ["Hermosillo", "Sonora"], "646": ["Mexicali", "Baja California"], "647": ["Hermosillo", "Sonora"], "648": ["Chihuahua", "Chihuahua"], "649": ["Chihuahua", "Chihuahua"], "651": ["Hermosillo", "Sonora"], "652": ["Chihuahua", "Chihuahua"], "653": ["Hermosillo", "Sonora"], "656": ["Chihuahua", "Chihuahua"], "658": ["Mexicali", "Baja California"], "659": ["Chihuahua", "Chihuahua"], "661": ["Mexicali", "Baja California"], "662": ["Hermosillo", "Sonora"], "664": ["Mexicali", "Baja California"], "665": ["Mexicali", "Baja California"], "667": ["Culiacan Rosales", "Sinaloa"], "668": ["Culiacan Rosales", "Sinaloa"], "669": ["Culiacan Rosales", "Sinaloa"], "671": ["Durango", "Durango"], "672": ["Culiacan Rosales", "Sinaloa"], "673": ["Culiacan Rosales", "Sinaloa"], "674": ["Durango", "Durango"], "675": ["Durango", "Durango"], "676": ["Durango", "Durango"], "677": ["Durango", "Durango"], "686": ["Mexicali", "Baja California"], "687": ["Culiacan Rosales", "Sinaloa"], "694": ["Culiacan Rosales", "Sinaloa"], "695": ["Culiacan Rosales", "Sinaloa"], "696": ["Culiacan Rosales", "Sinaloa"], "697": ["Culiacan Rosales", "Sinaloa"], "698": ["Culiacan Rosales", "Sinaloa"], "711": ["Toluca de Lerdo", "Estado de México"], "712": ["Toluca de Lerdo", "Estado de México"], "713": ["Toluca de Lerdo", "Estado de México"], "714": ["Toluca de Lerdo", "Estado de México"], "715": ["Morelia", "Michoacn"], "716": ["Toluca de Lerdo", "Estado de México"], "717": ["Toluca de Lerdo", "Estado de México"], "718": ["Toluca de Lerdo", "Estado de México"], "719": ["Toluca de Lerdo", "Estado de México"], "721": ["Toluca de Lerdo", "Estado de México"], "722": ["Toluca de Lerdo", "Estado de México"], "723": ["Toluca de Lerdo", "Estado de México"], "724": ["Toluca de Lerdo", "Estado de México"], "725": ["Toluca de Lerdo", "Estado de México"], "726": ["Toluca de Lerdo", "Estado de México"], "727": ["Chilpancingo de los Bravo", "Guerrero"], "728": ["Toluca de Lerdo", "Estado de México"], "731": ["Cuernavaca", "Morelos"], "732": ["Chilpancingo de los Bravo", "Guerrero"], "733": ["Chilpancingo de los Bravo", "Guerrero"], "734": ["Cuernavaca", "Morelos"], "735": ["Cuernavaca", "Morelos"], "736": ["Chilpancingo de los Bravo", "Guerrero"], "737": ["Cuernavaca", "Morelos"], "738": ["Pachuca de Soto", "Hidalgo"], "739": ["Cuernavaca", "Morelos"], "741": ["Chilpancingo de los Bravo", "Guerrero"], "742": ["Chilpancingo de los Bravo", "Guerrero"], "743": ["Pachuca de Soto", "Hidalgo"], "744": ["Chilpancingo de los Bravo", "Guerrero"], "745": ["Chilpancingo de los Bravo", "Guerrero"], "746": ["Xalapa", "Veracruz"], "747": ["Chilpancingo de los Bravo", "Guerrero"], "748": ["Pachuca de Soto", "Hidalgo"], "749": ["Tlaxcala", "Tlaxcala"], "751": ["Cuernavaca", "Morelos"], "753": ["Morelia", "Michoacn"], "754": ["Chilpancingo de los Bravo", "Guerrero"], "755": ["Chilpancingo de los Bravo", "Guerrero"], "756": ["Chilpancingo de los Bravo", "Guerrero"], "757": ["Chilpancingo de los Bravo", "Guerrero"], "758": ["Chilpancingo de los Bravo", "Guerrero"], "759": ["Pachuca de Soto", "Hidalgo"], "761": ["Pachuca de Soto", "Hidalgo"], "762": ["Chilpancingo de los Bravo", "Guerrero"], "763": ["Pachuca de Soto", "Hidalgo"], "764": ["Puebla", "Puebla"], "765": ["Xalapa", "Veracruz"], "766": ["Xalapa", "Veracruz"], "767": ["Chilpancingo de los Bravo", "Guerrero"], "768": ["Xalapa", "Veracruz"], "769": ["Cuernavaca", "Morelos"], "771": ["Pachuca de Soto", "Hidalgo"], "772": ["Pachuca de Soto", "Hidalgo"], "773": ["Pachuca de Soto", "Hidalgo"], "774": ["Pachuca de Soto", "Hidalgo"], "775": ["Pachuca de Soto", "Hidalgo"], "776": ["Puebla", "Puebla"], "777": ["Cuernavaca", "Morelos"], "778": ["Pachuca de Soto", "Hidalgo"], "779": ["Pachuca de Soto", "Hidalgo"], "781": ["Chilpancingo de los Bravo", "Guerrero"], "782": ["Xalapa", "Veracruz"], "783": ["Xalapa", "Veracruz"], "784": ["Xalapa", "Veracruz"], "785": ["Xalapa", "Veracruz"], "786": ["Morelia", "Michoacn"], "789": ["Xalapa", "Veracruz"], "791": ["Pachuca de Soto", "Hidalgo"], "797": ["Puebla", "Puebla"], "81": ["Monterrey", "Nuevo León"], "821": ["Monterrey", "Nuevo León"], "823": ["Monterrey", "Nuevo León"], "824": ["Monterrey", "Nuevo León"], "825": ["Monterrey", "Nuevo León"], "826": ["Monterrey", "Nuevo León"], "828": ["Monterrey", "Nuevo León"], "829": ["Monterrey", "Nuevo León"], "831": ["Ciudad Victoria", "Tamaulipas"], "832": ["Ciudad Victoria", "Tamaulipas"], "833": ["Xalapa", "Veracruz"], "834": ["Ciudad Victoria", "Tamaulipas"], "835": ["Ciudad Victoria", "Tamaulipas"], "836": ["Ciudad Victoria", "Tamaulipas"], "841": ["Ciudad Victoria", "Tamaulipas"], "842": ["Zacatecas", "Zacatecas"], "844": ["Saltillo", "Coahuila"], "845": ["San Luis Potos", "San Luis Potosí"], "846": ["Xalapa", "Veracruz"], "861": ["Saltillo", "Coahuila"], "862": ["Saltillo", "Coahuila"], "864": ["Saltillo", "Coahuila"], "866": ["Saltillo", "Coahuila"], "867": ["Monterrey", "Nuevo León"], "868": ["Ciudad Victoria", "Tamaulipas"], "869": ["Saltillo", "Coahuila"], "871": ["Durango", "Durango"], "872": ["Saltillo", "Coahuila"], "873": ["Monterrey", "Nuevo León"], "877": ["Saltillo", "Coahuila"], "878": ["Saltillo", "Coahuila"], "891": ["Ciudad Victoria", "Tamaulipas"], "892": ["Monterrey", "Nuevo León"], "894": ["Ciudad Victoria", "Tamaulipas"], "897": ["Ciudad Victoria", "Tamaulipas"], "899": ["Ciudad Victoria", "Tamaulipas"], "913": ["Villahermosa", "Tabasco"], "914": ["Villahermosa", "Tabasco"], "916": ["Tuxtla Guti�rrez", "Chiapas"], "917": ["Villahermosa", "Tabasco"], "918": ["Tuxtla Guti�rrez", "Chiapas"], "919": ["Tuxtla Guti�rrez", "Chiapas"], "921": ["Xalapa", "Veracruz"], "922": ["Xalapa", "Veracruz"], "923": ["Xalapa", "Veracruz"], "924": ["Xalapa", "Veracruz"], "932": ["Villahermosa", "Tabasco"], "933": ["Villahermosa", "Tabasco"], "934": ["Villahermosa", "Tabasco"], "936": ["Villahermosa", "Tabasco"], "937": ["Villahermosa", "Tabasco"], "938": ["San Francisco de Campeche", "Campeche"], "951": ["Oaxaca de Ju�rez", "Oaxaca"], "953": ["Oaxaca de Ju�rez", "Oaxaca"], "954": ["Oaxaca de Ju�rez", "Oaxaca"], "958": ["Oaxaca de Ju�rez", "Oaxaca"], "961": ["Tuxtla Guti�rrez", "Chiapas"], "962": ["Tuxtla Guti�rrez", "Chiapas"], "963": ["Tuxtla Guti�rrez", "Chiapas"], "964": ["Tuxtla Guti�rrez", "Chiapas"], "965": ["Tuxtla Guti�rrez", "Chiapas"], "966": ["Tuxtla Guti�rrez", "Chiapas"], "967": ["Tuxtla Guti�rrez", "Chiapas"], "968": ["Tuxtla Guti�rrez", "Chiapas"], "969": ["Merida", "Yucatan"], "971": ["Oaxaca de Ju�rez", "Oaxaca"], "972": ["Oaxaca de Ju�rez", "Oaxaca"], "981": ["San Francisco de Campeche", "Campeche"], "982": ["San Francisco de Campeche", "Campeche"], "983": ["Chetumal", "Quintana Roo"], "984": ["Chetumal", "Quintana Roo"], "985": ["Merida", "Yucatan"], "986": ["Merida", "Yucatan"], "987": ["Chetumal", "Quintana Roo"], "988": ["Merida", "Yucatan"], "991": ["Merida", "Yucatan"], "992": ["Tuxtla Guti�rrez", "Chiapas"], "993": ["Villahermosa", "Tabasco"], "994": ["Oaxaca de Ju�rez", "Oaxaca"], "995": ["Oaxaca de Ju�rez", "Oaxaca"], "996": ["San Francisco de Campeche", "Campeche"], "997": ["Merida", "Yucatan"], "998": ["Chetumal", "Quintana Roo"], "999": ["Merida", "Yucatan"]};
+const AG={'asesorce3@sahiba.com':{n:'Jazmin',wa:'+525546032968'},'sahibaleona@gmail.com':{n:'Nancy',wa:'+525562145834'},'ymsahiba78@gmail.com':{n:'Yoana',wa:'+525537949874'}};
+const AN=['Jazmin','Nancy','Yoana'];
+var WD=2,SV={WI:300,IIO:250,IIE:80,IOE:15,PD:300};
+const LM={};for(const[k,v]of Object.entries(LR))LM[k]={c:v[0],s:v[1]};
+const L3=new Set(Object.keys(LM).filter(k=>k.length===3)),L2=new Set(Object.keys(LM).filter(k=>k.length===2));
+
+let fl={c:null,m:null,v:null},rp={},wl=[],aq={},alog=[],callList=[],nancyCL=[],jazminCL=[],yoanaCL=[],paidList=[],cNav='reports',cRT='',sC=-1,sA=true,selAgent='';
+document.getElementById('dtL').textContent=new Date().toLocaleDateString('es-MX',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+ldLog();
+
+// ── PERSISTENT DATA: try to load previous session ──
+function saveState(){
+  try{
+    var data={rp:{},wl:[],aq:{},ts:new Date().toISOString()};
+    for(var k in rp){if(!rp[k])continue;data.rp[k]=rp[k].map(function(l){var o={};for(var p in l){o[p]=l[p] instanceof Date?'__DT__'+l[p].toISOString():l[p]}return o})}
+    data.wl=wl.map(function(l){var o={};for(var p in l){o[p]=l[p] instanceof Date?'__DT__'+l[p].toISOString():l[p]}return o});
+    for(var a in aq){data.aq[a]=aq[a].map(function(l){var o={};for(var p in l){o[p]=l[p] instanceof Date?'__DT__'+l[p].toISOString():l[p]}return o})}
+    localStorage.setItem('sahiba_crm_data',JSON.stringify(data));
+  }catch(e){console.warn('Save failed:',e)}
+}
+function loadState(){
+  try{
+    var raw=localStorage.getItem('sahiba_crm_data');if(!raw)return false;
+    var data=JSON.parse(raw);
+    function fix(arr){return(arr||[]).map(function(o){for(var p in o){if(typeof o[p]==='string'&&o[p].indexOf('__DT__')===0)o[p]=new Date(o[p].slice(6))}return o})}
+    rp={};for(var k in data.rp)rp[k]=fix(data.rp[k]);
+    wl=fix(data.wl);aq={};for(var a in data.aq)aq[a]=fix(data.aq[a]);
+    var d=new Date(data.ts);
+    document.getElementById('ll').textContent='Last loaded: '+d.toLocaleString('es-MX',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+    return true;
+  }catch(e){console.warn('Load failed:',e);return false}
+}
+
+// Try loading saved data on startup, then try loading from database
+if(loadState()&&Object.keys(rp).length>0){rnMUI()}else{
+  // Auto-load from database
+  (async function(){
+    try{
+      document.getElementById('upSec').style.display='flex';
+      var st=document.getElementById('syncSt');
+      st.innerHTML='📡 Loading...';
+      var r=await fetch(API_BASE+'/data');
+      var data=await r.json();
+      if(data.status==='ok'&&data.contactsCSV&&data.contactCount>0){
+        function fullParseCSV(txt){var results=[],row=[],field='',inQ=false;for(var i=0;i<txt.length;i++){var c=txt[i];if(c==='"'){if(inQ&&txt[i+1]==='"'){field+='"';i++}else{inQ=!inQ}}else if(c===','&&!inQ){row.push(field);field=''}else if((c==='\n'||(c==='\r'&&txt[i+1]==='\n'))&&!inQ){if(c==='\r')i++;row.push(field);results.push(row);row=[];field=''}else{field+=c}}if(field||row.length)row.push(field);if(row.length)results.push(row);return results}
+        function csvToObjects(txt){var rows=fullParseCSV(txt);if(rows.length<2)return[];var hdr=rows[0];var objs=[];for(var i=1;i<rows.length;i++){var o={};for(var j=0;j<hdr.length;j++){o[hdr[j]]=rows[i][j]||''}objs.push(o)}return objs}
+        var cRows=csvToObjects(data.contactsCSV||'');
+        var mRows=csvToObjects(data.messagesCSV||'');
+        _lastC=cRows;_lastM=mRows;_lastV=[];
+        buildCRM(cRows,mRows,[]);
+        st.innerHTML='';
+      }else{
+        st.innerHTML='';
+        document.getElementById('upSec').style.display='flex';
+      }
+    }catch(e){
+      document.getElementById('upSec').style.display='flex';
+      document.getElementById('syncSt').innerHTML='';
+    }
+  })();
+}
+
+// ── FILE UPLOAD ──
+var dz=document.getElementById('dz'),fIn=document.getElementById('fIn'),rBn=document.getElementById('rBn');
+dz.onclick=function(){fIn.click()};
+dz.ondragover=function(e){e.preventDefault();dz.classList.add('dg')};
+dz.ondragleave=function(){dz.classList.remove('dg')};
+dz.ondrop=function(e){e.preventDefault();dz.classList.remove('dg');hF(e.dataTransfer.files)};
+fIn.onchange=function(e){hF(e.target.files)};
+
+function hF(fls){for(var i=0;i<fls.length;i++){var f=fls[i],n=f.name.toLowerCase();if(n.includes('conversation'))fl.v=f;else if(n.includes('message')||n.includes('msg'))fl.m=f;else if(n.includes('contact'))fl.c=f;else{(function(file){var r=new FileReader();r.onload=function(ev){var l=ev.target.result.split('\n')[0].toLowerCase();if(l.includes('conversation id'))fl.v=file;else if(l.includes('message type')||l.includes('content type'))fl.m=file;else if(l.includes('contactid')||l.includes('lifecycle'))fl.c=file;uFS()};r.readAsText(file.slice(0,500))})(f);continue}uFS()}}
+function uFS(){document.getElementById('fSt').innerHTML='<span class="fp '+(fl.c?'ld':'ms')+'">'+(fl.c?'✓':'✗')+' Contacts'+(fl.c?' — '+fl.c.name:'')+'</span><span class="fp '+(fl.m?'ld':'ms')+'">'+(fl.m?'✓':'✗')+' Messages'+(fl.m?' — '+fl.m.name:'')+'</span>'+(fl.v?'<span class="fp ld">✓ Conversations</span>':'<span class="fp op">○ Conversations</span>')+'<span class="fp bi">✓ LADA+Agents</span>';rBn.disabled=!(fl.c&&fl.m);document.getElementById('uploadBtn').disabled=!(fl.c&&fl.m)}
+function pCSV(f){return new Promise(function(r,j){Papa.parse(f,{header:true,skipEmptyLines:true,complete:function(x){r(x.data)},error:function(e){j(e)}})})}
+document.getElementById('daysSel').onchange=function(){WD=parseInt(this.value)};
+var _lastC=null,_lastM=null,_lastV=null;
+rBn.onclick=async function(){WD=parseInt(document.getElementById('daysSel').value);rBn.textContent='⏳ Building...';rBn.disabled=true;try{var r=await Promise.all([pCSV(fl.c),pCSV(fl.m)]);var vR=[];if(fl.v)vR=await pCSV(fl.v);_lastC=r[0];_lastM=r[1];_lastV=vR;buildCRM(r[0],r[1],vR)}catch(e){alert('Error: '+e.message);rBn.textContent='▶ Build CRM';rBn.disabled=false}};
+
+// ── HELPERS ──
+function pk(ks,cs){for(var i=0;i<cs.length;i++)if(ks.includes(cs[i]))return cs[i];return''}
+function tD(v){if(!v)return null;var d=new Date(String(v).replace(' ','T'));return isNaN(d)?null:d}
+function eT(r){if(!r)return'';var s=String(r);try{var o=JSON.parse(s);if(o&&o.text)return o.text;if(o&&o.payload&&o.payload.text)return o.payload.text}catch(e){}var m=s.match(/"text"\s*:\s*"([^"]*)"/i);if(m)return m[1];return s.startsWith('{')?'':s}
+function iI(m){var ct=(m.ct||'').toLowerCase(),r=(m.cr||'').toLowerCase();if(ct.includes('attachment')&&r.includes('image/'))return true;return ct.includes('image')}
+function hW(ms){return ms.some(function(m){return /\b(mayoreo|wholesale|por\s+mayor|mayorista|bulto|paquete)\b/i.test(m.tx||'')})}
+function dP(ms){var b=null;var re=/(?:\$)\s*(\d{4,5})\b|(\d{4,5})\s*(pesos?|mxn)\b/gi;for(var i=0;i<ms.length;i++){var mt;while((mt=re.exec(ms[i].tx||''))!==null){var n=mt[1]||mt[2];if(!n)continue;var v=parseInt(n);if(v<1000||v>99999)continue;var r2=mt[0];if(!r2.includes('$')&&!/pesos?|mxn/i.test(r2+(mt[3]||'')))continue;b={v:v,f:'$'+v.toLocaleString('en-US')}}}return b||{v:0,f:''}}
+function cSc(ws,ii,oi,pv){var s=0;if(ws)s+=SV.WI;if(ii>0){s+=SV.IIO;s+=ii*SV.IIE}if(oi>0)s+=oi*SV.IOE;if(pv>0)s+=SV.PD;return s}
+function gN(c,cl){var fn=(c[cl.fn]||'').trim(),ln=(c[cl.ln]||'').trim();if(fn||ln)return[fn,ln].filter(Boolean).join(' ');return(c[cl.nm]||'').trim()}
+function iC(l){return(l||'').toLowerCase().includes('customer')}
+function rA(e){return AG[e]?AG[e].n:'Unassigned'}
+function fD(d){if(!d||!(d instanceof Date))return'';return d.toLocaleString('es-MX',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}
+function fDF(d){if(!(d instanceof Date))return'';return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')}
+
+// ── BUILD CRM ──
+function buildCRM(cR,mR,vR){
+  var now=new Date(),since=new Date(now.getTime()-WD*864e5);
+  var mK=Object.keys(mR[0]||{}),cK=Object.keys(cR[0]||{});
+  var mC={dt:pk(mK,['Date & Time','DateTime','datetime']),ci:pk(mK,['Contact ID','ContactID','contact_id']),mt:pk(mK,['Message Type','MessageType']),ct:pk(mK,['Content Type','ContentType']),cn:pk(mK,['Content','content','payload'])};
+  var cC={id:pk(cK,['ContactID','contact_id','Contact Id','id']),fn:pk(cK,['FirstName','first_name']),ln:pk(cK,['LastName','last_name']),nm:pk(cK,['name','full_name']),ph:pk(cK,['PhoneNumber','phone','phone_number','mobile']),lc:pk(cK,['Lifecycle','lifecycle']),as:pk(cK,['Assignee','assignee','Assigned Agent']),cy:pk(cK,['city','City','ciudad']),st:pk(cK,['state','State','estado'])};
+  var cBI={};cR.forEach(function(r){var id=(r[cC.id]||'').trim();if(id)cBI[id]=r});
+  for(var c of Object.values(cBI)){c._cy=(c[cC.cy]||'').trim();c._st=(c[cC.st]||'').trim();c._ag=rA((c[cC.as]||'').trim());if(c._cy&&c._st)continue;var d=(c[cC.ph]||'').replace(/\D/g,''),mx=d.startsWith('52')?d.slice(2):d;var h=L3.has(mx.slice(0,3))?mx.slice(0,3):L2.has(mx.slice(0,2))?mx.slice(0,2):null;if(h&&LM[h]){if(!c._cy)c._cy=LM[h].c||'';if(!c._st)c._st=LM[h].s||''}}
+  var mBC={};mR.forEach(function(r){var dt=tD(r[mC.dt]),ci=(r[mC.ci]||'').trim();if(!dt||!ci)return;if(!mBC[ci])mBC[ci]=[];mBC[ci].push({dt:dt,mt:(r[mC.mt]||'').toLowerCase(),ct:(r[mC.ct]||'').toLowerCase(),cr:r[mC.cn]||'',tx:eT(r[mC.cn])})});
+  var cvBC={};vR.forEach(function(r){var ci=(r['Contact ID']||'').trim();if(!ci)return;if(!cvBC[ci])cvBC[ci]=[];cvBC[ci].push({cat:r['Conversation Category']||'',note:r['Closing Note Summary']||''})});
+  function conv(ms){var inc=[],out=[],ii=0,lt=null,ltx='';for(var m of ms){if(m.mt.includes('incoming')){inc.push(m);if(iI(m))ii++}else if(m.mt.includes('outgoing'))out.push(m);if(!lt||m.dt>lt){lt=m.dt;ltx=m.tx||''}}return{inc:inc,out:out,ii:ii,lt:lt,ltx:ltx}}
+  function pL(ci,c,wm){var cv=conv(wm),nm=gN(c,cC),ph=c[cC.ph]||'',ag=c._ag;var ws=hW(cv.inc),oi=cv.out.filter(iI).length,py=dP(cv.out),sc=cSc(ws,cv.ii,oi,py.v);var ds=cv.lt?Math.floor((now-cv.lt)/864e5):999;
+    // Detect confirmed paid: ✅ Pago recibido confirmado
+    var paid=false;var allMsgs=[].concat(cv.inc,cv.out);
+    for(var mi=0;mi<allMsgs.length;mi++){var mtx=(allMsgs[mi].tx||'').toLowerCase();if(mtx.includes('pago recibido')||mtx.includes('pago confirmado')||mtx.includes('pago recibido confirmado')){paid=true;break}}
+    var pr='P3';if(paid){pr='PAID'}else if((py.v>0||ws)&&ds>=1)pr='P1';else if(sc>=300&&ds>=2)pr='P2';else if(py.v>0||ws)pr='P1';var act=paid?'✅ Paid — No follow up':'Follow up';if(!paid){if(py.v>0)act='Confirm payment '+py.f;else if(ws)act='Close wholesale deal';else if(cv.ii>0)act='Respond to images';else if(ds>=3)act='Re-engage'}var cvs=cvBC[ci]||[];var lc2=cvs.length?cvs[cvs.length-1]:null;return{id:ci,nm:nm,ph:ph,ag:ag,cy:c._cy||'',st:c._st||'',lc:c[cC.lc]||'',sc:sc,ws:ws,py:py.f,pv:py.v,ii:cv.ii,io:oi,im:cv.inc.length,om:cv.out.length,lt:cv.lt,ltx:cv.ltx,ds:ds,pr:pr,act:act,paid:paid}}
+  var r1=[],r2=[],r3=[],r4=[],r5=[];wl=[];paidList=[];aq={Jazmin:[],Nancy:[],Yoana:[],Unassigned:[]};
+  for(var ci of Object.keys(cBI)){var c=cBI[ci],lc=c[cC.lc]||'',ic=iC(lc),all=mBC[ci]||[];var ldt=all.length?all.reduce(function(mx,m){return(!mx||m.dt>mx)?m.dt:mx},null):null;
+    if(!all.length)continue;
+    if(!ldt)continue;
+    if(ldt>=since&&ldt<=now){var win=all.filter(function(m){return m.dt>=since&&m.dt<=now});var ld=pL(ci,c,win);if(ld.paid){paidList.push(ld)}else{if(ic)r1.push(ld);else r2.push(ld);if(ic&&all.some(function(m){return m.dt<since})){r5.push(Object.assign({},ld,{ft:all.reduce(function(mn,m){return(!mn||m.dt<mn)?m.dt:mn},null),mw:win.length}))}if(ld.pv>0||ld.ws||ld.sc>=300||(ic&&ld.ds>=1))wl.push(ld)}(aq[ld.ag]||aq.Unassigned).push(ld)}
+    else continue}
+  var srt=function(a){a.sort(function(x,y){return(y.sc-x.sc)||((y.lt?y.lt.getTime():0)-(x.lt?x.lt.getTime():0))})};
+  srt(r1);srt(r2);srt(r3);srt(r4);r5.sort(function(a,b){return((b.lt?b.lt.getTime():0)-(a.lt?a.lt.getTime():0))});
+  wl.sort(function(a,b){var p={P1:0,P2:1,P3:2};return(p[a.pr]||9)-(p[b.pr]||9)||(b.sc-a.sc)});
+  for(var k of Object.keys(aq))aq[k].sort(function(a,b){var p={P1:0,P2:1,P3:2};return(p[a.pr]||9)-(p[b.pr]||9)||(b.sc-a.sc)});
+  var cAg={};[].concat(r1,r2).forEach(function(l){var k=(l.cy||'?')+'|||'+(l.st||'?');if(!cAg[k])cAg[k]={cy:l.cy||'?',st:l.st||'?',n:0,ss:0,ws:0,py:0};var a=cAg[k];a.n++;a.ss+=l.sc;if(l.ws)a.ws++;if(l.py)a.py++});
+  apDL({d:new Date().toISOString().slice(0,10),t:new Date().toISOString(),ag:Object.fromEntries(Object.entries(aq).filter(function(x){return x[0]!=='Unassigned'}).map(function(x){return[x[0],{t:x[1].length,p1:x[1].filter(function(l){return l.pr==='P1'}).length}]}))});
+  rp={'Hot Cust':r1,'Hot Leads':r2,'✅ Paid':paidList,'Returning':r5,'Cities':Object.values(cAg).sort(function(a,b){return b.n-a.n})};
+  // ══ BUILD CALL LIST — leads outside 24h window ranked by buy likelihood ══
+  var BUY_RE=/quiero|necesito|me interesa|cómo.*ped|cómo.*compro|envía|mand|cuánto|precio|talla|color|modelo|disponib/i;
+  var allLeads=[].concat(r1,r2,r5||[]);
+  var seen={};callList=[];
+  allLeads.forEach(function(l){
+    if(seen[l.id])return;seen[l.id]=1;
+    var hrs=l.lt?Math.floor((now-l.lt)/36e5):9999;
+    var buyScore=0;var reasons=[];
+    // Payment signals
+    if(l.pv>0){buyScore+=40;reasons.push('💰 Payment mentioned')}
+    // Wholesale
+    if(l.ws){buyScore+=35;reasons.push('🏷 Wholesale interest')}
+    // Images sent = high engagement
+    if(l.ii>=2){buyScore+=30;reasons.push('📷 Sent '+l.ii+' images')}
+    else if(l.ii>=1){buyScore+=15;reasons.push('📷 Sent image')}
+    // Message volume = real interest
+    if(l.im>=10){buyScore+=20;reasons.push('💬 '+l.im+' messages')}
+    else if(l.im>=5){buyScore+=15;reasons.push('💬 '+l.im+' messages')}
+    else if(l.im>=3){buyScore+=10;reasons.push('💬 '+l.im+' msgs')}
+    // Lifecycle
+    var lv=(l.lc||'').toLowerCase();
+    if(lv.includes('customer')){buyScore+=25;reasons.push('👤 Customer')}
+    else if(lv.includes('payment')){buyScore+=30;reasons.push('💳 Payment stage')}
+    else if(lv.includes('intento')){buyScore+=20;reasons.push('🛒 Tried to buy')}
+    else if(lv.includes('hot lead')){buyScore+=15;reasons.push('🔥 Hot lead')}
+    // Recency
+    if(hrs<=48){buyScore+=15;reasons.push('⏰ <48h ago')}
+    else if(hrs<=72){buyScore+=10;reasons.push('⏰ <72h ago')}
+    if(buyScore<20||l.paid)return;
+    var window24=hrs<=24?'🟢 OPEN':'🔴 CLOSED';
+    callList.push({id:l.id,nm:l.nm,ph:l.ph,ag:l.ag,lc:l.lc,cy:l.cy,
+      buyScore:buyScore,reasons:reasons,hrs:hrs,window:window24,
+      sc:l.sc,pr:l.pr,ws:l.ws,py:l.py,ii:l.ii,im:l.im,om:l.om,act:l.act,ds:l.ds,lt:l.lt});
+  });
+  callList.sort(function(a,b){return b.buyScore-a.buyScore});
+  // ══ CALL LIST DISTRIBUTION ══
+  var jazminSet={},yoanaSet={};
+  // Jazmin's list: her chats <80h OR Customer status
+  callList.forEach(function(l){
+    var lv=(l.lc||'').toLowerCase();
+    var isCustomer=lv.includes('customer')||lv.includes('cliente');
+    if(l.ag==='Jazmin' && (l.hrs<=80 || isCustomer)){jazminSet[l.id]=1}
+    // Yoana gets her own assigned leads
+    if(l.ag==='Yoana'){yoanaSet[l.id]=1}
+  });
+  jazminCL=callList.filter(function(l){return jazminSet[l.id]});
+  yoanaCL=callList.filter(function(l){return yoanaSet[l.id]});
+  // Nancy gets: Jazmin's old non-customer chats + everything else not in Jazmin's or Yoana's list
+  nancyCL=callList.filter(function(l){return !jazminSet[l.id]&&!yoanaSet[l.id]});
+  saveState();
+  document.getElementById('ll').textContent='Loaded: '+new Date().toLocaleString('es-MX',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  rnMUI()}
+
+// ── LOG ──
+function apDL(e){var ls=JSON.parse(localStorage.getItem('sahiba_dl')||'[]');ls.push(e);localStorage.setItem('sahiba_dl',JSON.stringify(ls))}
+function gDL(){return JSON.parse(localStorage.getItem('sahiba_dl')||'[]')}
+function aL(tp,ag,dt){alog.push({t:new Date().toISOString(),tp:tp,ag:ag,dt:dt});localStorage.setItem('sahiba_al',JSON.stringify(alog))}
+function ldLog(){alog=JSON.parse(localStorage.getItem('sahiba_al')||'[]')}
+
+// ── WhatsApp via wa.me ──
+function waMsg(agent){
+  var inf=Object.values(AG).find(function(a){return a.n===agent});if(!inf)return;
+  var lds=aq[agent]||[];if(!lds.length){alert('No leads for '+agent);return}
+  var p1=lds.filter(function(l){return l.pr==='P1'}),p2=lds.filter(function(l){return l.pr==='P2'}),p3=lds.filter(function(l){return l.pr==='P3'});
+  var msg='📋 Buenos días '+inf.n+'!\nHoy tienes '+lds.length+' leads:\n🔴P1:'+p1.length+' 🟠P2:'+p2.length+' 🟡P3:'+p3.length+'\n\n';
+  if(p1.length){msg+='🔴 URGENTES:\n';p1.slice(0,10).forEach(function(l,i){msg+=(i+1)+'. '+(l.nm||'?')+' ('+l.ph+') — '+l.act+'\n'});msg+='\n'}
+  if(p2.length){msg+='🟠 IMPORTANTES:\n';p2.slice(0,8).forEach(function(l,i){msg+=(i+1)+'. '+(l.nm||'?')+' ('+l.ph+') — '+l.act+'\n'});msg+='\n'}
+  if(p3.length)msg+='🟡 SEGUIMIENTO: '+p3.length+' leads más\n';
+  msg+='\n💪 Éxito!';
+  var phone=inf.wa.replace('+','');
+  window.open('https://wa.me/'+phone+'?text='+encodeURIComponent(msg),'_blank');
+  aL('wa',inf.n,'Briefing opened: '+lds.length+' leads')
+}
+
+// ── DOWNLOAD AGENT EXCEL ──
+function dlAgent(agent){
+  var lds=aq[agent]||[];if(!lds.length)return;
+  var wb=XLSX.utils.book_new();
+  var lH=['id','name','phone','city','state','score','priority','action','wholesale','payment','img_in','out_msgs','last_contact','last_message'];
+  var rows=[lH].concat(lds.map(function(l){return[l.id,l.nm,l.ph,l.cy,l.st,l.sc,l.pr,l.act,l.ws?'YES':'',l.py,l.ii,l.om,fDF(l.lt),l.ltx]}));
+  var ws=XLSX.utils.aoa_to_sheet(rows);ws['!cols']=rows[0].map(function(_,i){var mx=8;for(var r=0;r<Math.min(rows.length,40);r++){var v=rows[r][i];if(v!=null)mx=Math.max(mx,Math.min(String(v).length+2,35))}return{wch:mx}});
+  XLSX.utils.book_append_sheet(wb,ws,agent);
+  XLSX.writeFile(wb,agent+'_Tasks_'+new Date().toISOString().slice(0,10)+'.xlsx')
+}
+
+// ── RENDER MAIN UI ──
+function rnMUI(){document.getElementById('upSec').style.display='none';document.getElementById('mainUI').style.display='block';
+  // Sync days selector
+  var dSel=document.getElementById('daysSelMain');
+  if(dSel){dSel.value=String(WD);
+    document.getElementById('daysInfo').textContent='Showing last '+WD+' day'+(WD>1?'s':'')+' of data';
+    document.getElementById('rebuildBtn').onclick=function(){
+      var nw=parseInt(dSel.value);
+      if(nw!==WD&&_lastC&&_lastM){WD=nw;buildCRM(_lastC,_lastM,_lastV||[])}
+      else if(nw===WD){document.getElementById('daysInfo').textContent='Already showing '+WD+' days'}
+      else{document.getElementById('daysInfo').textContent='⚠️ Upload CSVs first to rebuild'}
+    };
+  }
+  var ttl=Object.values(aq).reduce(function(s,a){return s+a.length},0);
+  document.getElementById('sR').innerHTML='<div class="sc cg"><div class="nm">'+(rp['Hot Cust']?rp['Hot Cust'].length:0)+'</div><div class="lb">Hot Customers</div></div><div class="sc co"><div class="nm">'+(rp['Hot Leads']?rp['Hot Leads'].length:0)+'</div><div class="lb">Hot Leads</div></div><div class="sc" style="background:#22c55e;color:#fff"><div class="nm">'+paidList.length+'</div><div class="lb">✅ Paid</div></div><div class="sc cr"><div class="nm">'+wl.length+'</div><div class="lb">🔍 Watchlist</div></div><div class="sc cgo"><div class="nm">'+ttl+'</div><div class="lb">Agent Tasks</div></div>';
+  var clCnt=(typeof callList!=='undefined')?callList.length:0;
+  var ncCnt=(typeof nancyCL!=='undefined')?nancyCL.length:0;
+  var jcCnt=(typeof jazminCL!=='undefined')?jazminCL.length:0;
+  var ycCnt=(typeof yoanaCL!=='undefined')?yoanaCL.length:0;
+  var nvs=[{id:'reports',i:'📊',l:'Reports'},{id:'agents',i:'👥',l:'Agents',c:ttl},{id:'calllist',i:'📞',l:'Master Calls',c:clCnt},{id:'nancycl',i:'📞',l:'Nancy Calls',c:ncCnt},{id:'jazmincl',i:'📞',l:'Jazmin Calls',c:jcCnt},{id:'yoanacl',i:'📞',l:'Yoana Calls',c:ycCnt},{id:'performance',i:'📈',l:'Performance'},{id:'watchlist',i:'🔍',l:'Watchlist',c:wl.length},{id:'map',i:'🗺️',l:'Map'},{id:'log',i:'📝',l:'Log',c:alog.length}];
+  // Admin-only: Upload Log tab
+  if(typeof IS_ADMIN!=='undefined' && IS_ADMIN){
+    nvs.push({id:'uploadlog',i:'📜',l:'Upload Log'});
+  }
+  document.getElementById('nB').innerHTML=nvs.map(function(n){return'<button class="nv '+(cNav===n.id?'a':'')+'" data-n="'+n.id+'">'+n.i+' '+n.l+(n.c!=null?'<span class="ct">'+n.c+'</span>':'')+'</button>'}).join('');
+  document.querySelectorAll('.nv[data-n]').forEach(function(b){b.onclick=function(){cNav=b.dataset.n;document.querySelectorAll('.nv[data-n]').forEach(function(x){x.classList.remove('a')});b.classList.add('a');shP()}});shP()}
+
+function shP(){document.querySelectorAll('.pn').forEach(function(p){p.classList.remove('av')});var id='p'+cNav.charAt(0).toUpperCase()+cNav.slice(1);var el=document.getElementById(id);if(el)el.classList.add('av');if(cNav==='reports')rnRp();else if(cNav==='agents')rnAg();else if(cNav==='watchlist')rnWl();else if(cNav==='log')rnLg();else if(cNav==='performance')rnPf();else if(cNav==='calllist')rnCL();else if(cNav==='nancycl')rnNCL();else if(cNav==='jazmincl')rnJCL();else if(cNav==='yoanacl')rnYCL();else if(cNav==='map')rnMap();else if(cNav==='uploadlog')rnUL()}
+
+// ── REPORTS ──
+function rnRp(){var tbs=Object.keys(rp);if(!cRT)cRT=tbs[0];document.getElementById('rTabs').innerHTML=tbs.map(function(t){return'<button class="nv '+(cRT===t?'a':'')+'" data-t="'+t+'">'+t+'<span class="ct">'+(rp[t]?rp[t].length:0)+'</span></button>'}).join('');document.querySelectorAll('[data-t]').forEach(function(b){b.onclick=function(){cRT=b.dataset.t;sC=-1;document.querySelectorAll('[data-t]').forEach(function(x){x.classList.remove('a')});b.classList.add('a');rnRT()}});document.getElementById('rSch').oninput=rnRT;document.getElementById('exBtn').onclick=exXL;document.getElementById('nwBtn').onclick=function(){fl={c:null,m:null,v:null};document.getElementById('upSec').style.display='flex';document.getElementById('mainUI').style.display='none';document.getElementById('fSt').innerHTML='';rBn.disabled=true;rBn.textContent='▶ Build CRM';fIn.value=''};rnRT()}
+
+function mkCell(c,l){var v=l[c.k];if(c.k==='_wa'){if(!l.ph)return'<td><span style="color:var(--t2);font-size:10px">—</span></td>';var msg=genWaMsg(l);return'<td><a href="'+waLink(l.ph,msg)+'" target="_blank" style="background:#25d366;color:#fff;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:700;text-decoration:none;white-space:nowrap">💬</a></td>'}if(c.k==='lc'){var lv=(v||'').toLowerCase();var bg='#e5e7eb';var fg='#374151';var lb=v||'—';if(l.paid){bg='#22c55e';fg='#fff';lb='✅ Paid'}else if(lv.includes('customer')||lv.includes('cliente')){bg='#dcfce7';fg='#166534';lb='👤 Customer'}else if(lv.includes('hot lead')){bg='#fee2e2';fg='#991b1b';lb='🔥 Hot Lead'}else if(lv.includes('new lead')){bg='#dbeafe';fg='#1e40af';lb='🆕 New Lead'}else if(lv.includes('cold')){bg='#f3f4f6';fg='#6b7280';lb='❄️ Cold'}else if(lv.includes('payment')||lv.includes('pago')){bg='#fef3c7';fg='#92400e';lb='💰 Payment'}else if(lv.includes('intento')){bg='#fef9c3';fg='#854d0e';lb='🛒 Intent'}else if(lv.includes('close')){bg='#f3e8ff';fg='#6b21a8';lb='✅ Closed'}return'<td><span style="background:'+bg+';color:'+fg+';padding:2px 8px;border-radius:5px;font-size:10px;font-weight:600;white-space:nowrap">'+lb+'</span></td>'}if(c.k==='nm')return'<td class="cn">'+(v||'—')+'</td>';if(c.k==='ph')return'<td class="cfn">'+(v||'')+'</td>';if(c.k==='sc'){var cl=v>=500?'sh2':v>=200?'sm2':'sl2';return'<td><span class="cs '+cl+'">'+v+'</span></td>'}if(c.k==='ws')return'<td>'+(v?'<span class="bd bw">YES</span>':'')+'</td>';if(c.k==='py')return'<td>'+(v?'<span class="bd bp">'+v+'</span>':'')+'</td>';if(c.k==='lt')return'<td>'+fD(v)+'</td>';if(c.k==='cy')return'<td>'+(v?'<span class="bd bc">'+v+'</span>':'')+'</td>';if(c.k==='ag')return'<td><span class="bd ba">'+(v||'—')+'</span></td>';if(c.k==='pr'){var pc=v==='P1'?'b1':v==='P2'?'b2':'b3';return'<td><span class="bd '+pc+'">'+v+'</span></td>'}if(c.k==='act')return'<td class="cm">'+(v||'')+'</td>';return'<td>'+(v!=null?v:'')+'</td>'}
+
+function rnRT(){var w=document.getElementById('rTbl'),q=(document.getElementById('rSch').value||'').toLowerCase(),dt=rp[cRT]||[];
+  if(cRT==='Cities'){rnCT(w,dt,q);return}
+  var fd=q?dt.filter(function(l){return(l.nm||'').toLowerCase().includes(q)||(l.ph||'').includes(q)||(l.cy||'').toLowerCase().includes(q)||(l.ag||'').toLowerCase().includes(q)}):dt;
+  if(!fd.length){w.innerHTML='<div class="em"><div class="ei">📭</div><p>No leads</p></div>';document.getElementById('rCnt').textContent='';return}
+  var cls=[{k:'nm',l:'Name'},{k:'lc',l:'Type'},{k:'ph',l:'Phone'},{k:'ag',l:'Agent'},{k:'cy',l:'City'},{k:'pr',l:'P'},{k:'sc',l:'Score'},{k:'ws',l:'Whlsl'},{k:'py',l:'Pay'},{k:'ii',l:'Img'},{k:'im',l:'In'},{k:'om',l:'Out'},{k:'lt',l:'Last'},{k:'act',l:'Action'},{k:'_wa',l:'📱'}];
+  var sd=[].concat(fd);if(sC>=0&&sC<cls.length){var ky=cls[sC].k;sd.sort(function(a,b){var va=a[ky],vb=b[ky];if(va instanceof Date)va=va.getTime();if(vb instanceof Date)vb=vb.getTime();if(typeof va==='string')va=va.toLowerCase();if(typeof vb==='string')vb=vb.toLowerCase();return sA?(va<vb?-1:va>vb?1:0):(va>vb?-1:va<vb?1:0)})}
+  var h='<table><thead><tr>'+cls.map(function(c,i){var is=sC===i;return'<th class="'+(is?'sd':'')+'" data-c="'+i+'">'+c.l+'</th>'}).join('')+'</tr></thead><tbody>';
+  sd.forEach(function(l){h+='<tr>';cls.forEach(function(c){h+=mkCell(c,l)});h+='</tr>'});h+='</tbody></table>';w.innerHTML=h;
+  document.getElementById('rCnt').textContent=sd.length+' of '+dt.length;
+  w.querySelectorAll('thead th').forEach(function(th){th.onclick=function(){var ci=parseInt(th.dataset.c);if(sC===ci)sA=!sA;else{sC=ci;sA=true}rnRT()}})}
+
+function rnCT(w,dt,q){var f=q?dt.filter(function(c){return(c.cy||'').toLowerCase().includes(q)}):dt;if(!f.length){w.innerHTML='<div class="em">No cities</div>';return}var h='<table><thead><tr><th>City</th><th>State</th><th>Contacts</th><th>Avg Score</th><th>Whlsl</th><th>Pay</th></tr></thead><tbody>';f.forEach(function(c){var avg=c.n?Math.round(c.ss/c.n):0;h+='<tr><td class="cn">'+c.cy+'</td><td>'+c.st+'</td><td><b>'+c.n+'</b></td><td><span class="cs '+(avg>=500?'sh2':avg>=200?'sm2':'sl2')+'">'+avg+'</span></td><td>'+(c.ws||'')+'</td><td>'+(c.py||'')+'</td></tr>'});h+='</tbody></table>';w.innerHTML=h;document.getElementById('rCnt').textContent=f.length+' cities'}
+
+// ── AGENTS (clickable cards + filter) ──
+function rnAg(){
+  selAgent='';
+  document.getElementById('aCds').innerHTML=AN.map(function(n){var lds=aq[n]||[],p1=lds.filter(function(l){return l.pr==='P1'}).length,p2=lds.filter(function(l){return l.pr==='P2'}).length,p3=lds.filter(function(l){return l.pr==='P3'}).length;var wa=Object.values(AG).find(function(a){return a.n===n});
+    return'<div class="acd" data-ag="'+n+'"><h3>'+n+'</h3><div class="ap">'+(wa?wa.wa:'')+'</div><div class="as"><span><span class="an" style="color:var(--rd)">'+p1+'</span><span class="al2">P1</span></span><span><span class="an" style="color:var(--or)">'+p2+'</span><span class="al2">P2</span></span><span><span class="an" style="color:var(--go)">'+p3+'</span><span class="al2">P3</span></span><span><span class="an">'+lds.length+'</span><span class="al2">Total</span></span></div></div>'}).join('')+
+    (function(){var ul=aq['Unassigned']||[];if(!ul.length)return'';var up1=ul.filter(function(l){return l.pr==='P1'}).length;var up2=ul.filter(function(l){return l.pr==='P2'}).length;var up3=ul.filter(function(l){return l.pr==='P3'}).length;return'<div class="acd" data-ag="Unassigned" style="border-color:#f59e0b;background:#fffbeb"><h3>⚠️ Unassigned</h3><div class="ap" style="color:#b45309">Needs distribution!</div><div class="as"><span><span class="an" style="color:var(--rd)">'+up1+'</span><span class="al2">P1</span></span><span><span class="an" style="color:var(--or)">'+up2+'</span><span class="al2">P2</span></span><span><span class="an" style="color:var(--go)">'+up3+'</span><span class="al2">P3</span></span><span><span class="an">'+ul.length+'</span><span class="al2">Total</span></span></div></div>'})();
+  document.querySelectorAll('.acd[data-ag]').forEach(function(card){card.onclick=function(){
+    var ag=card.dataset.ag;selAgent=(selAgent===ag)?'':ag;
+    document.querySelectorAll('.acd').forEach(function(c){c.classList.remove('sel')});
+    if(selAgent)card.classList.add('sel');
+    document.getElementById('agFilt').textContent=selAgent?'Showing: '+selAgent:'';
+    document.getElementById('agAll').style.display=selAgent?'inline-block':'none';
+    document.getElementById('agDl').style.display=selAgent?'inline-block':'none';
+    document.getElementById('agWa').style.display=selAgent?'inline-block':'none';
+    rnAT()}});
+  document.getElementById('agAll').onclick=function(){selAgent='';document.querySelectorAll('.acd').forEach(function(c){c.classList.remove('sel')});document.getElementById('agFilt').textContent='';document.getElementById('agAll').style.display='none';document.getElementById('agDl').style.display='none';document.getElementById('agWa').style.display='none';rnAT()};
+  document.getElementById('agDl').onclick=function(){if(selAgent)dlAgent(selAgent)};
+  document.getElementById('agWa').onclick=function(){if(selAgent)waMsg(selAgent)};
+  document.getElementById('aSch').oninput=rnAT;rnAT()}
+
+function typeBadge(l){
+  var lv=(l.lc||'').toLowerCase();var bg='#e5e7eb';var fg='#374151';var lb=l.lc||'—';
+  if(l.paid){bg='#22c55e';fg='#fff';lb='✅ Paid'}
+  else if(lv.includes('customer')||lv.includes('cliente')){bg='#dcfce7';fg='#166534';lb='👤 Customer'}
+  else if(lv.includes('hot lead')){bg='#fee2e2';fg='#991b1b';lb='🔥 Hot Lead'}
+  else if(lv.includes('new lead')){bg='#dbeafe';fg='#1e40af';lb='🆕 New'}
+  else if(lv.includes('payment')||lv.includes('pago')){bg='#fef3c7';fg='#92400e';lb='💰 Payment'}
+  else if(lv.includes('intento')){bg='#fef9c3';fg='#854d0e';lb='🛒 Intent'}
+  else if(lv.includes('cold')){bg='#f3f4f6';fg='#6b7280';lb='❄️ Cold'}
+  else if(lv.includes('close')){bg='#f3e8ff';fg='#6b21a8';lb='✅ Closed'}
+  return'<span style="background:'+bg+';color:'+fg+';padding:2px 6px;border-radius:5px;font-size:10px;font-weight:600;white-space:nowrap">'+lb+'</span>';
+}
+function genWaMsg(l){
+  var nm=(l.nm||'').split(' ')[0];if(nm.length>15||/[🌹😀❤️💌🌷]/.test(nm))nm='';
+  var hi=nm?'Hola '+nm+' 😊':'Hola 😊';
+  if(l.act.includes('Confirm payment')){return hi+'\\n¿Pudiste realizar tu pago? Estoy aquí para apoyarte con cualquier duda sobre tu pedido 🛍️'}
+  if(l.act.includes('wholesale')){return hi+'\\n¿Te gustaría hacer tu pedido de mayoreo? Tenemos promoción esta semana en bultos de 24 piezas 👗'}
+  if(l.act.includes('images')){return hi+'\\nVi que nos enviaste unas fotos, ya te tengo la info de disponibilidad y precios 📋'}
+  if(l.act.includes('Re-engage')){return hi+'\\n¡Esperamos que estés bien! Tenemos nuevos modelos que te van a encantar ✨ ¿Te comparto el catálogo?'}
+  return hi+'\\n¿Sigues interesada en nuestros productos? Estoy aquí para ayudarte 🌟';
+}
+function waLink(ph,msg){if(!ph)return'';var p=ph.replace(/\D/g,'');if(p.length===10)p='52'+p;return'https://wa.me/'+p+'?text='+encodeURIComponent(msg)}
+
+function rnAT(){var w=document.getElementById('aTbl'),q=(document.getElementById('aSch').value||'').toLowerCase();
+  var agents=selAgent?[selAgent]:['Jazmin','Nancy','Yoana','Unassigned'];
+  var h='<table><thead><tr><th>P</th><th>Type</th><th>Name</th><th>Phone</th><th>City</th><th>Score</th><th>WHLSL</th><th>PAY</th><th>IMG</th><th>Action</th><th>Days</th><th>📱</th></tr></thead><tbody>';
+  var total=0;
+  agents.forEach(function(agName){
+    var agLds=(aq[agName]||[]).slice();
+    if(q)agLds=agLds.filter(function(l){return(l.nm||'').toLowerCase().includes(q)||(l.ph||'').includes(q)||(l.act||'').toLowerCase().includes(q)});
+    if(!agLds.length)return;
+    agLds.sort(function(a,b){var po={P1:0,P2:1,P3:2};var d=(po[a.pr]!=null?po[a.pr]:9)-(po[b.pr]!=null?po[b.pr]:9);return d!==0?d:b.sc-a.sc});
+    var ap1=agLds.filter(function(x){return x.pr==='P1'}).length;
+    var ap2=agLds.filter(function(x){return x.pr==='P2'}).length;
+    var ap3=agLds.filter(function(x){return x.pr==='P3'}).length;
+    var hdrStyle=agName==='Unassigned'?'background:#fef3c7!important;border-color:#f59e0b!important':'';
+    h+='<tr class="agHdr" style="'+hdrStyle+'"><td colspan="12"><b>'+(agName==='Unassigned'?'⚠️ ':'')+agName+'</b> — <span style="color:var(--rd)">🔴 '+ap1+' P1</span> · <span style="color:var(--or)">🟠 '+ap2+' P2</span> · <span style="color:var(--go)">🟡 '+ap3+' P3</span> · '+agLds.length+' total</td></tr>';
+    agLds.forEach(function(l){
+      var pc=l.pr==='P1'?'b1':l.pr==='P2'?'b2':l.pr==='PAID'?'bp':'b3';
+      var msg=genWaMsg(l);
+      var waBtn=l.ph?'<a href="'+waLink(l.ph,msg)+'" target="_blank" style="background:#25d366;color:#fff;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:700;text-decoration:none;white-space:nowrap">💬 Send</a>':'<span style="color:var(--t2);font-size:10px">No phone</span>';
+      var typeBd=typeBadge(l);
+      h+='<tr><td><span class="bd '+pc+'">'+l.pr+'</span></td><td>'+typeBd+'</td><td class="cn">'+(l.nm||'—')+'</td><td class="cfn">'+l.ph+'</td><td>'+(l.cy?'<span class="bd bc">'+l.cy+'</span>':'')+'</td><td><span class="cs '+(l.sc>=500?'sh2':l.sc>=200?'sm2':'sl2')+'">'+l.sc+'</span></td><td>'+(l.ws?'<span class="bd bw">YES</span>':'')+'</td><td>'+(l.py?'<span class="bd bp">'+l.py+'</span>':'')+'</td><td>'+(l.ii?'<span class="bd b1">'+l.ii+'</span>':'0')+'</td><td class="cm">'+l.act+'</td><td>'+l.ds+'d</td><td>'+waBtn+'</td></tr>';
+    });
+    total+=agLds.length;
+  });
+  h+='</tbody></table>';w.innerHTML=h;document.getElementById('aCnt').textContent=total+' tasks'+(selAgent?' ('+selAgent+')':'')}
+
+// ── WATCHLIST ──
+function rnWl(){document.getElementById('wSch').oninput=rnWT;rnWT()}
+function rnWT(){var w=document.getElementById('wTbl'),q=(document.getElementById('wSch').value||'').toLowerCase();var fd=q?wl.filter(function(l){return(l.nm||'').toLowerCase().includes(q)||(l.ag||'').toLowerCase().includes(q)}):wl;if(!fd.length){w.innerHTML='<div class="em">No flagged leads</div>';document.getElementById('wCnt').textContent='';return}
+  var h='<table><thead><tr><th>P</th><th>Name</th><th>Phone</th><th>Agent</th><th>City</th><th>Score</th><th>Flags</th><th>Action</th><th>Days</th></tr></thead><tbody>';fd.forEach(function(l){var pc=l.pr==='P1'?'b1':l.pr==='P2'?'b2':'b3';var fg='';if(l.pv>0)fg+='<span class="bd bp">💰</span>';if(l.ws)fg+='<span class="bd bw">🏷</span>';if(l.ds>=3)fg+='<span class="bd b1">⏰</span>';if(iC(l.lc))fg+='<span class="bd br">👤</span>';h+='<tr><td><span class="bd '+pc+'">'+l.pr+'</span></td><td class="cn">'+(l.nm||'—')+'</td><td class="cfn">'+l.ph+'</td><td><span class="bd ba">'+l.ag+'</span></td><td>'+(l.cy?'<span class="bd bc">'+l.cy+'</span>':'')+'</td><td><span class="cs '+(l.sc>=500?'sh2':l.sc>=200?'sm2':'sl2')+'">'+l.sc+'</span></td><td>'+fg+'</td><td class="cm">'+l.act+'</td><td>'+l.ds+'d</td></tr>'});h+='</tbody></table>';w.innerHTML=h;document.getElementById('wCnt').textContent=fd.length+' flagged'}
+
+// ── LOG ──
+function rnLg(){document.getElementById('lSch').oninput=rnLE;document.getElementById('exLBtn').onclick=exLg;rnLE()}
+function rnLE(){var q=(document.getElementById('lSch').value||'').toLowerCase();var ents=[].concat(alog).reverse();gDL().reverse().forEach(function(dl){ents.push({t:dl.t,tp:'daily',ag:'System',dt:'Report: '+Object.entries(dl.ag||{}).map(function(x){return x[0]+':'+x[1].t+'leads'}).join(', ')})});ents.sort(function(a,b){return new Date(b.t)-new Date(a.t)});var fd=q?ents.filter(function(e){return(e.ag||'').toLowerCase().includes(q)||(e.dt||'').toLowerCase().includes(q)}):ents;if(!fd.length){document.getElementById('lEnt').innerHTML='<div class="em">No entries</div>';return}document.getElementById('lEnt').innerHTML=fd.slice(0,80).map(function(e){var ic=e.tp==='wa'?'📱':e.tp==='daily'?'📊':'📝';return'<div class="le"><span class="lt">'+ic+' '+new Date(e.t).toLocaleString('es-MX')+'</span> — <span class="la">'+e.ag+'</span><div class="lb2">'+e.dt+'</div></div>'}).join('')}
+
+// ── UPLOAD LOG (admin only) ──
+async function rnUL(){
+  var c=document.getElementById('ulContent');
+  c.innerHTML='<div style="padding:20px;color:var(--t2)">Loading upload history...</div>';
+  document.getElementById('ulRf').onclick=rnUL;
+  try{
+    var r=await fetch(API_BASE+'/import-log',{headers:{'Authorization':'Bearer '+APP_TOKEN}});
+    var data=await r.json();
+    if(data.status!=='ok'){c.innerHTML='<div class="em">Error: '+(data.error||'unknown')+'</div>';return}
+    var ag=data.aggregated||[];
+    if(!ag.length){c.innerHTML='<div class="em">No uploads yet</div>';return}
+    var html='<div style="margin-bottom:14px;color:var(--t2);font-size:12px">Showing last '+ag.length+' upload sessions</div>';
+    html+='<table><thead><tr><th>When</th><th>Kind</th><th>Status</th><th>Rows Total</th><th>Inserted</th><th>Duplicates</th><th>Chunks</th><th>Upload ID</th></tr></thead><tbody>';
+    ag.forEach(function(row){
+      var when=new Date(row.finished_at).toLocaleString('es-MX',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+      var statusBg=row.all_ok?'#dcfce7':'#fee2e2',statusFg=row.all_ok?'#166534':'#991b1b',statusLbl=row.all_ok?'✅ OK':'❌ Error';
+      var kind=row.kind==='contacts'?'👥 Contacts':row.kind==='messages'?'💬 Messages':row.kind;
+      var chunks=row.chunks_expected?(row.event_count+' / '+row.chunks_expected):row.event_count;
+      html+='<tr><td>'+when+'</td>'+
+        '<td>'+kind+'</td>'+
+        '<td><span class="bd" style="background:'+statusBg+';color:'+statusFg+'">'+statusLbl+'</span></td>'+
+        '<td class="cfn">'+(row.total_rows||0).toLocaleString()+'</td>'+
+        '<td class="cfn" style="color:var(--gn);font-weight:700">+'+(row.total_inserted||0).toLocaleString()+'</td>'+
+        '<td class="cfn" style="color:var(--t2)">'+(row.total_skipped||0).toLocaleString()+'</td>'+
+        '<td>'+chunks+'</td>'+
+        '<td style="font-family:monospace;font-size:10px;color:var(--t2)">'+(row.upload_id||'').slice(0,16)+'</td></tr>';
+    });
+    html+='</tbody></table>';
+    c.innerHTML=html;
+  }catch(e){
+    c.innerHTML='<div class="em">Error loading: '+e.message+'</div>';
+  }
+}
+
+// ── EXCEL EXPORT ──
+// ══════ CALL LIST — 24h window expired, ranked by buy likelihood ══════
+function rnCL(){
+  document.getElementById('clSch').oninput=rnCLT;
+  document.getElementById('clDl').onclick=exCL;
+  rnCLT();
+}
+function rnCLT(){
+  var w=document.getElementById('clTbl'),q=(document.getElementById('clSch').value||'').toLowerCase();
+  var fd=q?callList.filter(function(l){return(l.nm||'').toLowerCase().includes(q)||(l.ph||'').includes(q)||(l.ag||'').toLowerCase().includes(q)}):callList;
+  // Summary
+  var openW=fd.filter(function(l){return l.window.includes('OPEN')});
+  var closedW=fd.filter(function(l){return l.window.includes('CLOSED')});
+  var withPh=closedW.filter(function(l){return l.ph});
+  var hot=closedW.filter(function(l){return l.buyScore>=80});
+  var warm=closedW.filter(function(l){return l.buyScore>=40&&l.buyScore<80});
+  document.getElementById('clSummary').innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin:12px 0">'+
+    '<div style="background:#dcfce7;border-radius:10px;padding:10px;text-align:center"><div style="font-size:20px;font-weight:800;color:#166534">'+openW.length+'</div><div style="font-size:11px;color:#166534">🟢 Window Open</div><div style="font-size:9px;color:#166534">Message NOW free</div></div>'+
+    '<div style="background:#fee2e2;border-radius:10px;padding:10px;text-align:center"><div style="font-size:20px;font-weight:800;color:#991b1b">'+closedW.length+'</div><div style="font-size:11px;color:#991b1b">🔴 Window Closed</div><div style="font-size:9px;color:#991b1b">Call or template</div></div>'+
+    '<div style="background:#fef3c7;border-radius:10px;padding:10px;text-align:center"><div style="font-size:20px;font-weight:800;color:#92400e">'+hot.length+'</div><div style="font-size:11px;color:#92400e">🔥 Hot (Score 80+)</div><div style="font-size:9px;color:#92400e">CALL IMMEDIATELY</div></div>'+
+    '<div style="background:#dbeafe;border-radius:10px;padding:10px;text-align:center"><div style="font-size:20px;font-weight:800;color:#1e40af">'+warm.length+'</div><div style="font-size:11px;color:#1e40af">🌡 Warm (40-79)</div><div style="font-size:9px;color:#1e40af">Send template</div></div>'+
+    '<div style="background:#f3e8ff;border-radius:10px;padding:10px;text-align:center"><div style="font-size:20px;font-weight:800;color:#6b21a8">'+withPh.length+'</div><div style="font-size:11px;color:#6b21a8">📱 Have Phone</div><div style="font-size:9px;color:#6b21a8">Can call</div></div>'+
+  '</div>';
+  if(!fd.length){w.innerHTML='<div class="em"><div class="ei">📞</div><p>No leads to call</p></div>';document.getElementById('clCnt').textContent='';return}
+  var h='<table><thead><tr><th>Buy %</th><th>Window</th><th>Type</th><th>Name</th><th>Phone</th><th>Agent</th><th>City</th><th>Hours</th><th>📞 Call</th><th>💬 WA</th><th>✅ Status</th><th>Why They\'ll Buy</th></tr></thead><tbody>';
+  fd.forEach(function(l){
+    var bClr=l.buyScore>=100?'#dc2626':l.buyScore>=80?'#ea580c':l.buyScore>=60?'#d97706':l.buyScore>=40?'#2563eb':'#6b7280';
+    var bLbl=l.buyScore>=100?'🔥🔥🔥':l.buyScore>=80?'🔥🔥':l.buyScore>=60?'🔥':'🌡';
+    var wBadge=l.window.includes('OPEN')?'<span style="background:#dcfce7;color:#166534;padding:2px 6px;border-radius:5px;font-size:10px;font-weight:700">🟢 OPEN</span>':'<span style="background:#fee2e2;color:#991b1b;padding:2px 6px;border-radius:5px;font-size:10px;font-weight:700">🔴 '+l.hrs+'h</span>';
+    var reasonsHtml=l.reasons.map(function(r){return'<span style="display:inline-block;background:#f3f4f6;padding:1px 6px;border-radius:4px;font-size:9px;margin:1px">'+r+'</span>'}).join('');
+    var callBtn=l.ph?'<a href="tel:+'+l.ph.replace(/\D/g,'')+'" style="background:#3b82f6;color:#fff;padding:3px 10px;border-radius:5px;font-size:10px;font-weight:700;text-decoration:none;white-space:nowrap">📞</a>':'—';
+    var waBtn=l.ph?'<a href="'+waLink(l.ph,genWaMsg(l))+'" target="_blank" style="background:#25d366;color:#fff;padding:3px 10px;border-radius:5px;font-size:10px;font-weight:700;text-decoration:none;white-space:nowrap">💬</a>':'—';
+    h+='<tr><td><span style="background:'+bClr+';color:#fff;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:800">'+bLbl+' '+l.buyScore+'</span></td>';
+    h+='<td>'+wBadge+'</td>';
+    h+='<td>'+typeBadge(l)+'</td>';
+    h+='<td class="cn">'+(l.nm||'—')+'</td><td class="cfn">'+l.ph+'</td>';
+    h+='<td><span class="bd ba">'+l.ag+'</span></td>';
+    h+='<td>'+(l.cy?'<span class="bd bc">'+l.cy+'</span>':'')+'</td>';
+    h+='<td style="font-size:12px">'+l.hrs+'h</td>';
+    h+='<td>'+callBtn+'</td><td>'+waBtn+'</td>';
+    h+='<td>'+checkInBtns(l)+'</td>';
+    h+='<td style="max-width:220px">'+reasonsHtml+'</td></tr>';
+  });
+  h+='</tbody></table>';w.innerHTML=h;
+  bindCheckIns(w);
+  document.getElementById('clCnt').textContent=fd.length+' leads ('+hot.length+' hot, '+warm.length+' warm)';
+}
+function exCL(){if(!callList.length)return;var wb=XLSX.utils.book_new();
+  var rows=[['Buy_Score','Window','Name','Phone','Agent','City','Lifecycle','Reasons','Hours_Since','CRM_Score','Priority']];
+  callList.forEach(function(l){rows.push([l.buyScore,l.window,l.nm,l.ph,l.ag,l.cy,l.lc,l.reasons.join(' + '),l.hrs,l.sc,l.pr])});
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),'Call_List');
+  XLSX.writeFile(wb,'Sahiba_Call_List_'+new Date().toISOString().slice(0,10)+'.xlsx');
+}
+
+// ══ Shared call list table renderer ══
+function rnCLTable(list,tblId,sumId,cntId,schId,agLabel,desc){
+  var w=document.getElementById(tblId),q=(document.getElementById(schId).value||'').toLowerCase();
+  // Get current filter from data attribute
+  var filterEl=document.getElementById(sumId);
+  var activeFilter=filterEl.dataset.filter||'all';
+  var fd=q?list.filter(function(l){return(l.nm||'').toLowerCase().includes(q)||(l.ph||'').includes(q)||(l.ag||'').toLowerCase().includes(q)}):list;
+  var closedW=fd.filter(function(l){return l.window.includes('CLOSED')});
+  var hot=fd.filter(function(l){return l.buyScore>=80});
+  var warm=fd.filter(function(l){return l.buyScore>=40&&l.buyScore<80});
+  var withPh=fd.filter(function(l){return l.ph});
+  var custs=fd.filter(function(l){var v=(l.lc||'').toLowerCase();return v.includes('customer')||v.includes('cliente')});
+  var pays=fd.filter(function(l){var v=(l.lc||'').toLowerCase();return v.includes('payment')||v.includes('pago')});
+  var custC=custs.length,payC=pays.length;
+  // Apply active filter
+  var shown=fd;
+  if(activeFilter==='hot')shown=hot;
+  else if(activeFilter==='warm')shown=warm;
+  else if(activeFilter==='cust')shown=custs;
+  else if(activeFilter==='pay')shown=pays;
+  else if(activeFilter==='phone')shown=withPh;
+  function cardStyle(bg,fg,fk){var border=activeFilter===fk?'3px solid '+fg:'2px solid transparent';return'background:'+bg+';border-radius:10px;padding:8px;text-align:center;cursor:pointer;border:'+border+';transition:all .2s'}
+  function dlBtn(fk,fg){return'<div class="clDl" data-fk="'+fk+'" style="margin-top:4px;font-size:9px;color:'+fg+';opacity:.7;cursor:pointer" title="Download this segment">⬇ Excel</div>'}
+  document.getElementById(sumId).innerHTML=
+    '<div style="background:linear-gradient(135deg,#1e1b4b,#312e81);color:#fff;border-radius:12px;padding:14px 18px;margin:10px 0">'+
+    '<div style="font-size:16px;font-weight:800;margin-bottom:4px">'+agLabel+'</div>'+
+    '<div style="font-size:11px;opacity:.8;margin-bottom:10px">'+desc+'</div></div>'+
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin:8px 0">'+
+    '<div class="clCard" data-fk="all" style="'+cardStyle('#fee2e2','#991b1b','all')+'"><div style="font-size:18px;font-weight:800;color:#991b1b">'+fd.length+'</div><div style="font-size:10px;color:#991b1b">Total</div>'+dlBtn('all','#991b1b')+'</div>'+
+    '<div class="clCard" data-fk="hot" style="'+cardStyle('#fef3c7','#92400e','hot')+'"><div style="font-size:18px;font-weight:800;color:#92400e">'+hot.length+'</div><div style="font-size:10px;color:#92400e">🔥 Hot 80+</div>'+dlBtn('hot','#92400e')+'</div>'+
+    '<div class="clCard" data-fk="warm" style="'+cardStyle('#dbeafe','#1e40af','warm')+'"><div style="font-size:18px;font-weight:800;color:#1e40af">'+warm.length+'</div><div style="font-size:10px;color:#1e40af">🌡 Warm</div>'+dlBtn('warm','#1e40af')+'</div>'+
+    '<div class="clCard" data-fk="cust" style="'+cardStyle('#dcfce7','#166534','cust')+'"><div style="font-size:18px;font-weight:800;color:#166534">'+custC+'</div><div style="font-size:10px;color:#166534">👤 Customers</div>'+dlBtn('cust','#166534')+'</div>'+
+    '<div class="clCard" data-fk="pay" style="'+cardStyle('#f3e8ff','#6b21a8','pay')+'"><div style="font-size:18px;font-weight:800;color:#6b21a8">'+payC+'</div><div style="font-size:10px;color:#6b21a8">💰 Payment</div>'+dlBtn('pay','#6b21a8')+'</div>'+
+    '<div class="clCard" data-fk="phone" style="'+cardStyle('#e0e7ff','#3730a3','phone')+'"><div style="font-size:18px;font-weight:800;color:#3730a3">'+withPh.length+'</div><div style="font-size:10px;color:#3730a3">📱 Phone</div>'+dlBtn('phone','#3730a3')+'</div>'+
+    '</div>';
+  // Bind card click to filter
+  filterEl.querySelectorAll('.clCard').forEach(function(card){
+    card.addEventListener('click',function(e){
+      if(e.target.classList.contains('clDl'))return;
+      var fk=card.dataset.fk;
+      filterEl.dataset.filter=(activeFilter===fk)?'all':fk;
+      rnCLTable(list,tblId,sumId,cntId,schId,agLabel,desc);
+    });
+  });
+  // Bind download buttons
+  filterEl.querySelectorAll('.clDl').forEach(function(btn){
+    btn.addEventListener('click',function(e){
+      e.stopPropagation();
+      var fk=btn.dataset.fk;
+      var seg=fd;var segName='All';
+      if(fk==='hot'){seg=hot;segName='Hot80'}
+      else if(fk==='warm'){seg=warm;segName='Warm'}
+      else if(fk==='cust'){seg=custs;segName='Customers'}
+      else if(fk==='pay'){seg=pays;segName='Payment'}
+      else if(fk==='phone'){seg=withPh;segName='WithPhone'}
+      if(!seg.length)return;
+      var nm=agLabel.replace(/[^a-zA-Z]/g,'')+'_'+segName;
+      exAgCL(seg,nm);
+    });
+  });
+  if(!shown.length){w.innerHTML='<div class="em"><div class="ei">📞</div><p>No leads'+(activeFilter!=='all'?' in this filter':'')+'</p></div>';document.getElementById(cntId).textContent='';return}
+  var h='<table><thead><tr><th>Buy %</th><th>Window</th><th>Type</th><th>Name</th><th>Phone</th><th>Agent</th><th>City</th><th>Hours</th><th>📞 Call</th><th>💬 WA</th><th>✅ Status</th><th>Why They\'ll Buy</th></tr></thead><tbody>';
+  shown.forEach(function(l){
+    var bClr=l.buyScore>=100?'#dc2626':l.buyScore>=80?'#ea580c':l.buyScore>=60?'#d97706':l.buyScore>=40?'#2563eb':'#6b7280';
+    var bLbl=l.buyScore>=100?'🔥🔥🔥':l.buyScore>=80?'🔥🔥':l.buyScore>=60?'🔥':'🌡';
+    var wBadge=l.window.includes('OPEN')?'<span style="background:#dcfce7;color:#166534;padding:2px 6px;border-radius:5px;font-size:10px;font-weight:700">🟢 OPEN</span>':'<span style="background:#fee2e2;color:#991b1b;padding:2px 6px;border-radius:5px;font-size:10px;font-weight:700">🔴 '+l.hrs+'h</span>';
+    var reasonsHtml=l.reasons.map(function(r){return'<span style="display:inline-block;background:#f3f4f6;padding:1px 6px;border-radius:4px;font-size:9px;margin:1px">'+r+'</span>'}).join('');
+    var callBtn=l.ph?'<a href="tel:+'+l.ph.replace(/\D/g,'')+'" style="background:#3b82f6;color:#fff;padding:3px 10px;border-radius:5px;font-size:10px;font-weight:700;text-decoration:none;white-space:nowrap">📞</a>':'—';
+    var waBtn=l.ph?'<a href="'+waLink(l.ph,genWaMsg(l))+'" target="_blank" style="background:#25d366;color:#fff;padding:3px 10px;border-radius:5px;font-size:10px;font-weight:700;text-decoration:none;white-space:nowrap">💬</a>':'—';
+    h+='<tr><td><span style="background:'+bClr+';color:#fff;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:800">'+bLbl+' '+l.buyScore+'</span></td>';
+    h+='<td>'+wBadge+'</td>';
+    h+='<td>'+typeBadge(l)+'</td>';
+    h+='<td class="cn">'+(l.nm||'—')+'</td><td class="cfn">'+l.ph+'</td>';
+    h+='<td><span class="bd ba">'+(l.ag||'—')+'</span></td>';
+    h+='<td>'+(l.cy?'<span class="bd bc">'+l.cy+'</span>':'')+'</td>';
+    h+='<td style="font-size:12px">'+l.hrs+'h</td>';
+    h+='<td>'+callBtn+'</td><td>'+waBtn+'</td>';
+    h+='<td>'+checkInBtns(l)+'</td>';
+    h+='<td style="max-width:220px">'+reasonsHtml+'</td></tr>';
+  });
+  h+='</tbody></table>';w.innerHTML=h;
+  bindCheckIns(w);
+  var filterLabel=activeFilter==='all'?'':' ['+activeFilter.toUpperCase()+']';
+  document.getElementById(cntId).textContent=shown.length+' leads'+filterLabel+' ('+hot.length+' hot, '+warm.length+' warm)';
+}
+
+// ══ NANCY CALL LIST ══
+function rnNCL(){
+  document.getElementById('ncSch').oninput=rnNCLT;
+  document.getElementById('ncDl').onclick=function(){exAgCL(nancyCL,'Nancy')};
+  rnNCLT();
+}
+function rnNCLT(){
+  rnCLTable(nancyCL,'ncTbl','ncSummary','ncCnt','ncSch',
+    '📞 Nancy — Call List',
+    'Jazmin\'s old chats (80+ hours) that are NOT Customer + all remaining chats not in Jazmin\'s list');
+}
+
+// ══ JAZMIN CALL LIST ══
+function rnJCL(){
+  document.getElementById('jcSch').oninput=rnJCLT;
+  document.getElementById('jcDl').onclick=function(){exAgCL(jazminCL,'Jazmin')};
+  rnJCLT();
+}
+function rnJCLT(){
+  rnCLTable(jazminCL,'jcTbl','jcSummary','jcCnt','jcSch',
+    '📞 Jazmin — Priority Call List',
+    'Jazmin\'s fresh chats (<80 hours) + ALL Customer status → Jazmin keeps these');
+}
+
+// ══ YOANA CALL LIST ══
+function rnYCL(){
+  document.getElementById('ycSch').oninput=rnYCLT;
+  document.getElementById('ycDl').onclick=function(){exAgCL(yoanaCL,'Yoana')};
+  rnYCLT();
+}
+function rnYCLT(){
+  rnCLTable(yoanaCL,'ycTbl','ycSummary','ycCnt','ycSch',
+    '📞 Yoana — Call List',
+    'Yoana\'s assigned leads');
+}
+
+function exAgCL(list,name){if(!list.length)return;var wb=XLSX.utils.book_new();
+  var rows=[['Buy_Score','Window','Name','Phone','Agent','City','Lifecycle','Reasons','Hours_Since','CRM_Score','Priority']];
+  list.forEach(function(l){rows.push([l.buyScore,l.window,l.nm,l.ph,l.ag,l.cy,l.lc,l.reasons.join(' + '),l.hrs,l.sc,l.pr])});
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),name+'_Calls');
+  XLSX.writeFile(wb,'Sahiba_'+name+'_Calls_'+new Date().toISOString().slice(0,10)+'.xlsx');
+}
+
+// ══════ AGENT PERFORMANCE ══════
+function rnPf(){
+  var el=document.getElementById('perfContent');
+  var agents=['Jazmin','Nancy','Yoana'];
+  var agData=agents.map(function(name){
+    var leads=(aq[name]||[]).slice();
+    var p1=leads.filter(function(l){return l.pr==='P1'});
+    var p2=leads.filter(function(l){return l.pr==='P2'});
+    var p3=leads.filter(function(l){return l.pr==='P3'});
+    var totalIn=leads.reduce(function(s,l){return s+l.im},0);
+    var totalOut=leads.reduce(function(s,l){return s+l.om},0);
+    var totalImg=leads.reduce(function(s,l){return s+l.ii},0);
+    var payLeads=leads.filter(function(l){return l.py&&l.py!==''&&l.py!=='YES'});
+    var payTotal=payLeads.reduce(function(s,l){var v=parseFloat((l.py||'').replace(/[$,]/g,''));return s+(isNaN(v)?0:v)},0);
+    var wsLeads=leads.filter(function(l){return l.ws});
+    var avgScore=leads.length?Math.round(leads.reduce(function(s,l){return s+l.sc},0)/leads.length):0;
+    var avgDays=leads.length?Math.round(leads.reduce(function(s,l){return s+(l.ds||0)},0)/leads.length*10)/10:0;
+    var responded=leads.filter(function(l){return l.om>0}).length;
+    var respRate=leads.length?Math.round(responded/leads.length*100):0;
+    // Top 5 leads by score
+    var top5=leads.slice().sort(function(a,b){return b.sc-a.sc}).slice(0,5);
+    return{name:name,total:leads.length,p1:p1.length,p2:p2.length,p3:p3.length,
+      totalIn:totalIn,totalOut:totalOut,totalImg:totalImg,
+      payLeads:payLeads.length,payTotal:payTotal,wsLeads:wsLeads.length,
+      avgScore:avgScore,avgDays:avgDays,respRate:respRate,top5:top5};
+  });
+  // Also unassigned
+  var unLds=(aq['Unassigned']||[]);
+  var unP1=unLds.filter(function(l){return l.pr==='P1'}).length;
+
+  // Find best performer
+  var maxSc=Math.max.apply(null,agData.map(function(a){return a.avgScore}));
+  var maxResp=Math.max.apply(null,agData.map(function(a){return a.respRate}));
+  var maxPay=Math.max.apply(null,agData.map(function(a){return a.payTotal}));
+
+  var h='<div style="padding:16px">';
+  // Unassigned alert
+  if(unLds.length>0){
+    h+='<div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:13px"><b>⚠️ '+unLds.length+' unassigned leads</b> ('+unP1+' P1) — need to be distributed to agents</div>';
+  }
+
+  // Summary comparison cards
+  h+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px">';
+  agData.forEach(function(a){
+    var isBestSc=a.avgScore===maxSc;
+    var isBestResp=a.respRate===maxResp;
+    var isBestPay=a.payTotal===maxPay;
+    var medals='';if(isBestSc)medals+='🏆 ';if(isBestResp)medals+='⚡ ';if(isBestPay)medals+='💰 ';
+    h+='<div style="background:var(--s);border:2px solid var(--bd);border-radius:12px;padding:16px;box-shadow:var(--sh)">';
+    h+='<div style="font-size:18px;font-weight:800;margin-bottom:2px">'+a.name+' '+medals+'</div>';
+    h+='<div style="font-size:11px;color:var(--t2);margin-bottom:12px">'+a.total+' active leads</div>';
+    // Priority bars
+    var maxP=Math.max(a.p1,a.p2,a.p3,1);
+    h+='<div style="display:flex;gap:8px;margin-bottom:12px">';
+    h+='<div style="flex:1;text-align:center"><div style="background:var(--rd);color:#fff;border-radius:6px;padding:4px;font-weight:800;font-size:14px">'+a.p1+'</div><div style="font-size:10px;color:var(--t2)">P1</div></div>';
+    h+='<div style="flex:1;text-align:center"><div style="background:var(--or);color:#fff;border-radius:6px;padding:4px;font-weight:800;font-size:14px">'+a.p2+'</div><div style="font-size:10px;color:var(--t2)">P2</div></div>';
+    h+='<div style="flex:1;text-align:center"><div style="background:#eab308;color:#fff;border-radius:6px;padding:4px;font-weight:800;font-size:14px">'+a.p3+'</div><div style="font-size:10px;color:var(--t2)">P3</div></div>';
+    h+='</div>';
+    // Stats grid
+    h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px">';
+    h+='<div style="background:var(--bg);padding:6px 8px;border-radius:6px"><span style="color:var(--t2)">Avg Score</span><br><b style="font-size:15px;color:'+(isBestSc?'var(--gn)':'var(--t1)')+'">'+a.avgScore+'</b></div>';
+    h+='<div style="background:var(--bg);padding:6px 8px;border-radius:6px"><span style="color:var(--t2)">Resp Rate</span><br><b style="font-size:15px;color:'+(isBestResp?'var(--gn)':'var(--t1)')+'">'+a.respRate+'%</b></div>';
+    h+='<div style="background:var(--bg);padding:6px 8px;border-radius:6px"><span style="color:var(--t2)">📨 In</span><br><b>'+a.totalIn+'</b></div>';
+    h+='<div style="background:var(--bg);padding:6px 8px;border-radius:6px"><span style="color:var(--t2)">📤 Out</span><br><b>'+a.totalOut+'</b></div>';
+    h+='<div style="background:var(--bg);padding:6px 8px;border-radius:6px"><span style="color:var(--t2)">💰 Payments</span><br><b style="color:'+(isBestPay?'var(--gn)':'var(--t1)')+'">$'+Math.round(a.payTotal).toLocaleString()+'</b> <span style="font-size:10px">('+a.payLeads+')</span></div>';
+    h+='<div style="background:var(--bg);padding:6px 8px;border-radius:6px"><span style="color:var(--t2)">🏷 Wholesale</span><br><b>'+a.wsLeads+'</b></div>';
+    h+='<div style="background:var(--bg);padding:6px 8px;border-radius:6px"><span style="color:var(--t2)">📷 Images</span><br><b>'+a.totalImg+'</b></div>';
+    h+='<div style="background:var(--bg);padding:6px 8px;border-radius:6px"><span style="color:var(--t2)">⏱ Avg Days</span><br><b>'+a.avgDays+'d</b></div>';
+    h+='</div>';
+    h+='</div>';
+  });
+  h+='</div>';
+
+  // Comparison table
+  h+='<div style="background:var(--s);border-radius:12px;padding:16px;margin-bottom:20px;box-shadow:var(--sh)">';
+  h+='<h3 style="margin:0 0 12px;font-size:15px">📊 Side-by-Side Comparison</h3>';
+  h+='<table style="width:100%"><thead><tr style="background:var(--bg)"><th style="text-align:left;padding:8px">Metric</th>';
+  agData.forEach(function(a){h+='<th style="text-align:center;padding:8px">'+a.name+'</th>'});
+  h+='</tr></thead><tbody>';
+  var metrics=[
+    {l:'Total Leads',k:'total'},{l:'🔴 P1 Urgent',k:'p1'},{l:'🟠 P2 Important',k:'p2'},{l:'🟡 P3 Follow-up',k:'p3'},
+    {l:'Avg Score',k:'avgScore'},{l:'Response Rate',k:'respRate',s:'%'},
+    {l:'Messages In',k:'totalIn'},{l:'Messages Out',k:'totalOut'},
+    {l:'Images Received',k:'totalImg'},{l:'Wholesale Leads',k:'wsLeads'},
+    {l:'Payment Leads',k:'payLeads'},{l:'Avg Days Since Contact',k:'avgDays',s:'d'}
+  ];
+  metrics.forEach(function(m,i){
+    var vals=agData.map(function(a){return a[m.k]});
+    var best=m.k==='avgDays'?Math.min.apply(null,vals):Math.max.apply(null,vals);
+    h+='<tr style="'+(i%2?'background:var(--bg)':'')+'"><td style="padding:6px 8px;font-size:12px">'+m.l+'</td>';
+    agData.forEach(function(a){
+      var v=a[m.k];var isBest=v===best&&agData.filter(function(x){return x[m.k]===best}).length===1;
+      h+='<td style="text-align:center;padding:6px 8px;font-size:13px;font-weight:'+(isBest?'800':'400')+';color:'+(isBest?'var(--gn)':'var(--t1)')+'">'+v+(m.s||'')+(isBest?' ⭐':'')+'</td>';
+    });
+    h+='</tr>';
+  });
+  // Payment total row
+  h+='<tr style="background:var(--al);font-weight:700"><td style="padding:8px;font-size:13px">💰 Total Payment Value</td>';
+  agData.forEach(function(a){var isBest=a.payTotal===maxPay&&agData.filter(function(x){return x.payTotal===maxPay}).length===1;h+='<td style="text-align:center;padding:8px;font-size:14px;color:'+(isBest?'var(--gn)':'var(--t1)')+'">$'+Math.round(a.payTotal).toLocaleString()+(isBest?' 🏆':'')+'</td>'});
+  h+='</tr></tbody></table></div>';
+
+  // Top leads per agent
+  h+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">';
+  agData.forEach(function(a){
+    h+='<div style="background:var(--s);border-radius:12px;padding:16px;box-shadow:var(--sh)">';
+    h+='<h3 style="margin:0 0 10px;font-size:14px">🔥 '+a.name+' — Top 5</h3>';
+    h+='<table style="width:100%;font-size:11px"><thead><tr><th>P</th><th>Name</th><th>Score</th><th>Action</th></tr></thead><tbody>';
+    a.top5.forEach(function(l){
+      var pc=l.pr==='P1'?'var(--rd)':l.pr==='P2'?'var(--or)':'#eab308';
+      h+='<tr><td><span style="background:'+pc+';color:#fff;padding:1px 5px;border-radius:4px;font-size:10px;font-weight:700">'+l.pr+'</span></td>';
+      h+='<td style="max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(l.nm||'—')+'</td>';
+      h+='<td style="font-weight:700;color:'+(l.sc>=500?'var(--rd)':l.sc>=200?'var(--or)':'var(--t2)')+'">'+l.sc+'</td>';
+      h+='<td style="font-size:10px;color:var(--t2)">'+(l.act||'').slice(0,25)+'</td></tr>';
+    });
+    h+='</tbody></table></div>';
+  });
+  h+='</div>';
+  h+='</div>';
+  el.innerHTML=h;
+}
+
+function exXL(){var wb=XLSX.utils.book_new();var lH=['id','name','phone','agent','city','state','lifecycle','score','priority','action','wholesale','payment','img_in','img_out','in_msgs','out_msgs','last_contact','last_message'];var defs=[{n:'HOT_CUST',k:'Hot Cust'},{n:'HOT_LEADS',k:'Hot Leads'},{n:'COLD_CUST',k:'Cold Cust'},{n:'COLD_LEADS',k:'Cold Leads'},{n:'RETURNING',k:'Returning'},{n:'CITIES',k:'Cities'},{n:'WATCHLIST',k:'_wl'},{n:'JAZMIN',k:'_a_Jazmin'},{n:'NANCY',k:'_a_Nancy'},{n:'YOANA',k:'_a_Yoana'}];
+  for(var di=0;di<defs.length;di++){var df=defs[di];var rows;if(df.k==='Cities'){var d=rp.Cities||[];rows=[['city','state','contacts','avg_score','wholesale','payments']].concat(d.map(function(c){return[c.cy,c.st,c.n,c.n?Math.round(c.ss/c.n):0,c.ws,c.py]}))}else if(df.k==='_wl'){rows=[lH].concat(wl.map(function(l){return[l.id,l.nm,l.ph,l.ag,l.cy,l.st,l.lc,l.sc,l.pr,l.act,l.ws?'YES':'',l.py,l.ii,l.io,l.im,l.om,fDF(l.lt),l.ltx]}))}else if(df.k.startsWith('_a_')){var ag=df.k.replace('_a_','');var dd=aq[ag]||[];rows=[lH].concat(dd.map(function(l){return[l.id,l.nm,l.ph,l.ag,l.cy,l.st,l.lc,l.sc,l.pr,l.act,l.ws?'YES':'',l.py,l.ii,l.io,l.im,l.om,fDF(l.lt),l.ltx]}))}else{var dd2=rp[df.k]||[];rows=[lH].concat(dd2.map(function(l){return[l.id,l.nm,l.ph,l.ag,l.cy,l.st,l.lc,l.sc,l.pr,l.act,l.ws?'YES':'',l.py,l.ii,l.io,l.im,l.om,fDF(l.lt),l.ltx]}))}
+    var ws=XLSX.utils.aoa_to_sheet(rows);ws['!cols']=rows[0].map(function(_,i){var mx=8;for(var r=0;r<Math.min(rows.length,40);r++){var v=rows[r][i];if(v!=null)mx=Math.max(mx,Math.min(String(v).length+2,35))}return{wch:mx}});XLSX.utils.book_append_sheet(wb,ws,df.n)}
+  XLSX.writeFile(wb,'Sahiba_CRM_'+new Date().toISOString().slice(0,10)+'.xlsx')}
+
+function exLg(){var wb=XLSX.utils.book_new();var rows=[['timestamp','type','agent','details']].concat(alog.map(function(a){return[a.t,a.tp,a.ag,a.dt]}));XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),'Log');XLSX.writeFile(wb,'Sahiba_Log_'+new Date().toISOString().slice(0,10)+'.xlsx')}
+
+
+
+// ═══ MAP — Lead hotspots by city ═══
+var CITY_COORDS={"Aguascalientes":[21.88,-102.29],"Cancún":[21.16,-86.85],"Chetumal":[18.5,-88.3],"Chihuahua":[28.63,-106.09],"Chilpancingo de los Bravo":[17.55,-99.5],"Ciudad Victoria":[23.74,-99.15],"Colima":[19.24,-103.72],"Cuernavaca":[18.92,-99.23],"Culiacan Rosales":[24.8,-107.39],"Durango":[24.02,-104.67],"Guadalajara":[20.67,-103.35],"Guanajuato":[21.02,-101.26],"Hermosillo":[29.07,-110.97],"La Paz":[24.14,-110.31],"Merida":[20.97,-89.62],"Mexicali":[32.66,-115.47],"Monterrey":[25.67,-100.31],"Morelia":[19.7,-101.19],"Oaxaca de Juárez":[17.07,-96.73],"Oaxaca de Ju\u00e1rez":[17.07,-96.73],"Pachuca de Soto":[20.12,-98.74],"Puebla":[19.04,-98.21],"Saltillo":[25.42,-101],"San Francisco de Campeche":[19.84,-90.53],"San Luis Potos":[22.15,-100.97],"San Luis Potosí":[22.15,-100.97],"Santiago de Queretaror":[20.59,-100.39],"Querétaro":[20.59,-100.39],"Tepic":[21.51,-104.89],"Tlaxcala":[19.32,-98.24],"Toluca de Lerdo":[19.29,-99.66],"Tuxtla Gutiérrez":[16.75,-93.12],"Tuxtla Guti\u00e9rrez":[16.75,-93.12],"Villahermosa":[17.99,-92.93],"Xalapa":[19.54,-96.93],"Zacatecas":[22.77,-102.57],"Ciudad de México":[19.43,-99.13],"CDMX":[19.43,-99.13],"Mexico City":[19.43,-99.13],"Estado de México":[19.29,-99.66]};
+
+function rnMap(){
+  var el=document.getElementById('mapChart');
+  var lg=document.getElementById('mapLegend');
+  // Aggregate leads by city
+  var cityData={};
+  var allLeads=[];
+  for(var k in rp){if(rp[k])allLeads=allLeads.concat(rp[k])}
+  allLeads.forEach(function(l){
+    var cy=l.cy||'Unknown';
+    if(cy==='Unknown'||!cy)return;
+    if(!cityData[cy])cityData[cy]={total:0,hot:0,p1:0,paid:0,score:0};
+    cityData[cy].total++;
+    cityData[cy].score+=l.sc||0;
+    if(l.pr==='P1')cityData[cy].p1++;
+    if(l.pr==='PAID')cityData[cy].paid++;
+    if(l.sc>=300)cityData[cy].hot++;
+  });
+  // Sort by total leads
+  var sorted=Object.keys(cityData).sort(function(a,b){return cityData[b].total-cityData[a].total});
+  var maxLeads=sorted.length?cityData[sorted[0]].total:1;
+  // Build SVG map with circles
+  var svgW=900,svgH=550;
+  var minLat=14.5,maxLat=33,minLng=-118,maxLng=-86;
+  function proj(lat,lng){
+    var x=(lng-minLng)/(maxLng-minLng)*svgW;
+    var y=(maxLat-lat)/(maxLat-minLat)*svgH;
+    return[x,y];
+  }
+  var circles='';
+  var tooltip='';
+  sorted.forEach(function(cy,i){
+    var d=cityData[cy];
+    var coords=CITY_COORDS[cy];
+    if(!coords){
+      // Try fuzzy match
+      for(var k in CITY_COORDS){if(k.toLowerCase().indexOf(cy.toLowerCase().slice(0,5))===0){coords=CITY_COORDS[k];break}}
+    }
+    if(!coords)return;
+    var p=proj(coords[0],coords[1]);
+    var r2=Math.max(6,Math.min(35,Math.sqrt(d.total/maxLeads)*35));
+    var color=d.p1>0?'rgba(234,88,12,0.7)':d.hot>0?'rgba(22,163,74,0.7)':'rgba(37,99,235,0.6)';
+    if(d.paid>0)color='rgba(22,163,74,0.8)';
+    circles+='<circle cx="'+p[0]+'" cy="'+p[1]+'" r="'+r2+'" fill="'+color+'" stroke="#fff" stroke-width="1.5" style="cursor:pointer" onmouseover="this.setAttribute(\'r\','+(r2+4)+');document.getElementById(\'mapTip\').innerHTML=\'<b>'+cy+'</b><br>'+d.total+' leads | '+d.p1+' P1 | '+d.hot+' hot | '+d.paid+' paid<br>Avg score: '+Math.round(d.score/d.total)+'\';document.getElementById(\'mapTip\').style.display=\'block\'" onmouseout="this.setAttribute(\'r\','+r2+');document.getElementById(\'mapTip\').style.display=\'none\'"/>';
+    if(d.total>=3)circles+='<text x="'+p[0]+'" y="'+(p[1]+3)+'" text-anchor="middle" fill="#fff" font-size="'+(r2>12?'10':'8')+'" font-weight="700" pointer-events="none">'+d.total+'</text>';
+  });
+  // Mexico outline (simplified)
+  var outline='<path d="M140,180 L180,120 L250,80 L350,50 L450,40 L550,35 L600,50 L680,80 L730,110 L780,130 L800,180 L810,230 L780,300 L750,350 L700,380 L650,400 L600,420 L550,430 L500,450 L450,460 L400,480 L350,490 L300,500 L250,480 L200,440 L170,380 L150,320 L130,260 Z" fill="none" stroke="#D0D5DD" stroke-width="1.5" stroke-dasharray="4"/>';
+  el.innerHTML='<div style="position:relative"><svg viewBox="0 0 '+svgW+' '+svgH+'" style="width:100%;height:auto;background:#F8FAFD;border-radius:10px">'+outline+circles+'</svg><div id="mapTip" style="display:none;position:absolute;top:10px;right:10px;background:rgba(26,29,35,0.92);color:#fff;padding:10px 14px;border-radius:8px;font-size:12px;pointer-events:none;line-height:1.6;min-width:180px"></div></div>';
+  // Legend table
+  var tbl='<h3 style="font-size:14px;margin-bottom:10px">🏙️ Top Cities by Lead Count</h3>';
+  tbl+='<table><thead><tr><th>City</th><th>Leads</th><th>P1</th><th>Hot</th><th>Paid</th><th>Avg Score</th></tr></thead><tbody>';
+  sorted.slice(0,25).forEach(function(cy,i){
+    var d=cityData[cy];
+    var bg=i%2===0?'':'background:#F8FAFD';
+    tbl+='<tr style="'+bg+'"><td style="font-weight:600">'+cy+'</td><td style="font-family:monospace;font-weight:700">'+d.total+'</td><td style="color:var(--or);font-weight:700">'+(d.p1||'-')+'</td><td style="color:var(--gn);font-weight:700">'+(d.hot||'-')+'</td><td style="color:var(--ac);font-weight:700">'+(d.paid||'-')+'</td><td style="font-family:monospace">'+Math.round(d.score/d.total)+'</td></tr>';
+  });
+  tbl+='</tbody></table>';
+  lg.innerHTML=tbl;
+}
+</script></body></html>

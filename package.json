@@ -1,0 +1,10 @@
+{
+  "name": "sahiba-crm-v2",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Sahiba CRM with Neon persistence and SQL Server customer history",
+  "dependencies": {
+    "@neondatabase/serverless": "^0.9.5"
+  },
+  "engines": { "node": ">=18" }
+}
