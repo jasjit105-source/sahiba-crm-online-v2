@@ -153,54 +153,11 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--bd);vertical-align:middl
 <div class="pn" id="pJazmincl"><div class="tb"><input type="text" class="sb" id="jcSch" placeholder="Search Jazmin call list..."><div class="tr"><button class="bs bgn" id="jcDl">⬇ Download Jazmin List</button></div></div><div id="jcSummary"></div><div class="tw" id="jcTbl"></div><div class="rc" id="jcCnt"></div></div>
 <div class="pn" id="pYoanacl"><div class="tb"><input type="text" class="sb" id="ycSch" placeholder="Search Yoana call list..."><div class="tr"><button class="bs bgn" id="ycDl">⬇ Download Yoana List</button></div></div><div id="ycSummary"></div><div class="tw" id="ycTbl"></div><div class="rc" id="ycCnt"></div></div>
 <div class="pn" id="pMap"><div id="mapContent" style="background:var(--s);border:1px solid var(--bd);border-radius:var(--r);padding:20px;box-shadow:var(--sh)"><div id="mapChart" style="width:100%;height:500px"></div><div id="mapLegend" style="margin-top:14px"></div></div></div>
-<div class="pn" id="pUploadlog"><div class="tb"><div style="font-size:14px;color:var(--t1);font-weight:700">📜 Upload History</div><div class="tr"><button class="bs bsy" id="ulRf">🔄 Refresh</button></div></div><div id="ulContent" style="margin-top:14px"></div></div>
 </div>
 </div>
 <script>
 // ══════ CSV UPLOAD (primary) + API SYNC (optional) ══════
 var API_BASE='/api';
-
-// ═══ ADMIN / AGENT VIEW GATE ═══
-// URL ?v=nancy|jazmin|yoana → agent view (read-only, no upload)
-// otherwise → admin view (requires password 1993, can upload)
-var URL_PARAMS=new URLSearchParams(window.location.search);
-var VIEW_MODE=(URL_PARAMS.get('v')||'').toLowerCase();// 'nancy', 'jazmin', 'yoana', or ''
-var IS_ADMIN=!VIEW_MODE;
-var APP_TOKEN='sahiba2026';// matches Netlify env var
-
-if(IS_ADMIN){
-  var stored=localStorage.getItem('sahiba_admin_pass');
-  if(stored!=='1993'){
-    var pass=prompt('Admin Password (Jessie only):');
-    if(pass!=='1993'){
-      document.body.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;color:#dc2626;font-size:18px">Access Denied</div>';
-      throw new Error('access_denied');
-    }
-    localStorage.setItem('sahiba_admin_pass','1993');
-  }
-}else{
-  // Agent view: hide upload UI after page loads
-  setTimeout(function(){
-    var hide=function(sel){var el=document.querySelector(sel);if(el)el.style.display='none'};
-    hide('#uploadBtn');hide('#dz');hide('#fIn');
-    // Add a banner showing which agent
-    var name=VIEW_MODE.charAt(0).toUpperCase()+VIEW_MODE.slice(1);
-    document.title='Sahiba CRM — '+name;
-    var ll=document.getElementById('ll');
-    if(ll)ll.innerHTML='👤 '+name+' • '+ll.textContent;
-  },500);
-}
-
-// Wrapper for fetch that adds auth on admin endpoints
-function apiPost(path,body){
-  var opts={method:'POST',headers:{'Content-Type':'application/json'}};
-  // Upload requires APP_TOKEN; checkin/data don't
-  if(path.indexOf('/upload')>=0||path.indexOf('/query')>=0||path.indexOf('/sales-sync')>=0){
-    opts.headers['Authorization']='Bearer '+APP_TOKEN;
-  }
-  if(body)opts.body=JSON.stringify(body);
-  return fetch(API_BASE+path,opts);
-}
 
 // ═══ AGENT CHECK-IN SYSTEM ═══
 var _checkedIn={};// track checked leads this session: {contactId: {action,ts}}
@@ -287,90 +244,29 @@ async function loadFromDB(){
   }
 }
 
-// CHUNKED UPLOAD — splits the messages CSV into ~3 MB chunks, each chunk
-// includes the header row so the server can parse it independently.
-// Contacts CSV is small enough to upload in one shot.
 async function uploadToNeon(){
   var btn=document.getElementById('uploadBtn'),st=document.getElementById('uploadSt');
   if(!fl.c||!fl.m){alert('Upload Contacts + Messages files first');return}
   btn.disabled=true;btn.textContent='⏳ Uploading...';
   st.innerHTML='📤 Reading files...';
-
-  function readFile(f){return new Promise(function(res,rej){var r=new FileReader();r.onload=function(e){res(e.target.result)};r.onerror=rej;r.readAsText(f)})}
-  function genUploadId(){return 'up_'+Date.now()+'_'+Math.random().toString(36).slice(2,8)}
-
-  // Split a CSV string into chunks of ~maxBytes, each prefixed with the header row.
-  // Splits on row boundaries — never breaks a row in half.
-  function splitCsvIntoChunks(csv, maxBytes){
-    var firstNL=csv.indexOf('\n');
-    if(firstNL<0)return[csv];
-    var header=csv.slice(0,firstNL+1);// includes the newline
-    var body=csv.slice(firstNL+1);
-    if(body.length<=maxBytes-header.length){return[header+body]}
-    var chunks=[];
-    var pos=0;
-    while(pos<body.length){
-      var end=Math.min(pos+maxBytes-header.length,body.length);
-      // Walk back to nearest newline so we don't split a row mid-line.
-      // (CSV with quoted-newline edge case: rare in Respond.io exports)
-      if(end<body.length){
-        var back=body.lastIndexOf('\n',end);
-        if(back>pos)end=back+1;
-      }
-      chunks.push(header+body.slice(pos,end));
-      pos=end;
-    }
-    return chunks;
-  }
-
   try{
+    function readFile(f){return new Promise(function(res,rej){var r=new FileReader();r.onload=function(e){res(e.target.result)};r.onerror=rej;r.readAsText(f)})}
     var cTxt=await readFile(fl.c);
     var mTxt=await readFile(fl.m);
-    var uploadId=genUploadId();
-
-    // === PHASE 1: contacts (single shot) ===
-    st.innerHTML='☁️ Uploading contacts ('+(cTxt.length/1024/1024).toFixed(1)+' MB)...';
-    var cRes=await apiPost('/upload',{kind:'contacts',csv:cTxt,uploadId:uploadId});
-    var cData=await cRes.json();
-    if(cData.status!=='ok'){
-      throw new Error('Contacts upload failed: '+(cData.error||'unknown'));
+    st.innerHTML='☁️ Uploading to database... (this may take a moment for large files)';
+    var r=await fetch(API_BASE+'/upload',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contactsCSV:cTxt,messagesCSV:mTxt})});
+    var data=await r.json();
+    if(data.status==='ok'){
+      var newBadge=data.newContacts>0?' | <span style="color:var(--or);font-weight:700">🆕 '+data.newContacts+' NEW contacts</span>':'';
+      st.innerHTML='<b style="color:var(--gn)">✅ Uploaded! '+data.contacts+' contacts, '+data.messages+' messages</b>'+newBadge;
+      btn.textContent='📤 Upload & Update';btn.disabled=false;
+      // Auto-load the dashboard
+      WD=parseInt(document.getElementById('daysSel').value);
+      loadFromDB();
+    }else{
+      st.innerHTML='❌ '+data.error;btn.textContent='📤 Upload & Update';btn.disabled=false;
     }
-
-    // === PHASE 2: messages (chunked) ===
-    var CHUNK_SIZE=3*1024*1024;// 3 MB per chunk (well under Netlify's 6 MB limit)
-    var chunks=splitCsvIntoChunks(mTxt,CHUNK_SIZE);
-    var totalChunks=chunks.length;
-    var totalInserted=0,totalSkipped=0;
-
-    for(var i=0;i<chunks.length;i++){
-      var pct=Math.round(((i+1)/chunks.length)*100);
-      st.innerHTML='☁️ Uploading messages — chunk '+(i+1)+' / '+totalChunks+' ('+pct+'%)... '+
-        '<div style="background:#e5e7eb;border-radius:4px;height:6px;overflow:hidden;margin-top:6px"><div style="background:var(--gn);height:100%;width:'+pct+'%;transition:width .3s"></div></div>';
-      var mRes=await apiPost('/upload',{
-        kind:'messages',
-        csv:chunks[i],
-        chunkIndex:i,
-        totalChunks:totalChunks,
-        uploadId:uploadId
-      });
-      var mData=await mRes.json();
-      if(mData.status!=='ok'){
-        throw new Error('Messages chunk '+(i+1)+' failed: '+(mData.error||'unknown'));
-      }
-      totalInserted+=mData.rowsInserted||0;
-      totalSkipped+=mData.rowsSkipped||0;
-    }
-
-    var newBadge=cData.newContacts>0?' | <span style="color:var(--or);font-weight:700">🆕 '+cData.newContacts+' NEW contacts</span>':'';
-    st.innerHTML='<b style="color:var(--gn)">✅ Uploaded! '+cData.rows+' contacts, '+totalInserted+' new messages</b>'+
-      ' <span style="color:var(--t2);font-size:11px">('+totalSkipped+' duplicates skipped, '+totalChunks+' chunks)</span>'+newBadge;
-    btn.textContent='📤 Upload & Update';btn.disabled=false;
-
-    // Auto-load the dashboard
-    WD=parseInt(document.getElementById('daysSel').value);
-    loadFromDB();
   }catch(e){
-    console.error(e);
     st.innerHTML='❌ '+e.message;btn.textContent='📤 Upload & Update';btn.disabled=false;
   }
 }
@@ -610,14 +506,10 @@ function rnMUI(){document.getElementById('upSec').style.display='none';document.
   var jcCnt=(typeof jazminCL!=='undefined')?jazminCL.length:0;
   var ycCnt=(typeof yoanaCL!=='undefined')?yoanaCL.length:0;
   var nvs=[{id:'reports',i:'📊',l:'Reports'},{id:'agents',i:'👥',l:'Agents',c:ttl},{id:'calllist',i:'📞',l:'Master Calls',c:clCnt},{id:'nancycl',i:'📞',l:'Nancy Calls',c:ncCnt},{id:'jazmincl',i:'📞',l:'Jazmin Calls',c:jcCnt},{id:'yoanacl',i:'📞',l:'Yoana Calls',c:ycCnt},{id:'performance',i:'📈',l:'Performance'},{id:'watchlist',i:'🔍',l:'Watchlist',c:wl.length},{id:'map',i:'🗺️',l:'Map'},{id:'log',i:'📝',l:'Log',c:alog.length}];
-  // Admin-only: Upload Log tab
-  if(typeof IS_ADMIN!=='undefined' && IS_ADMIN){
-    nvs.push({id:'uploadlog',i:'📜',l:'Upload Log'});
-  }
   document.getElementById('nB').innerHTML=nvs.map(function(n){return'<button class="nv '+(cNav===n.id?'a':'')+'" data-n="'+n.id+'">'+n.i+' '+n.l+(n.c!=null?'<span class="ct">'+n.c+'</span>':'')+'</button>'}).join('');
   document.querySelectorAll('.nv[data-n]').forEach(function(b){b.onclick=function(){cNav=b.dataset.n;document.querySelectorAll('.nv[data-n]').forEach(function(x){x.classList.remove('a')});b.classList.add('a');shP()}});shP()}
 
-function shP(){document.querySelectorAll('.pn').forEach(function(p){p.classList.remove('av')});var id='p'+cNav.charAt(0).toUpperCase()+cNav.slice(1);var el=document.getElementById(id);if(el)el.classList.add('av');if(cNav==='reports')rnRp();else if(cNav==='agents')rnAg();else if(cNav==='watchlist')rnWl();else if(cNav==='log')rnLg();else if(cNav==='performance')rnPf();else if(cNav==='calllist')rnCL();else if(cNav==='nancycl')rnNCL();else if(cNav==='jazmincl')rnJCL();else if(cNav==='yoanacl')rnYCL();else if(cNav==='map')rnMap();else if(cNav==='uploadlog')rnUL()}
+function shP(){document.querySelectorAll('.pn').forEach(function(p){p.classList.remove('av')});var id='p'+cNav.charAt(0).toUpperCase()+cNav.slice(1);var el=document.getElementById(id);if(el)el.classList.add('av');if(cNav==='reports')rnRp();else if(cNav==='agents')rnAg();else if(cNav==='watchlist')rnWl();else if(cNav==='log')rnLg();else if(cNav==='performance')rnPf();else if(cNav==='calllist')rnCL();else if(cNav==='nancycl')rnNCL();else if(cNav==='jazmincl')rnJCL();else if(cNav==='yoanacl')rnYCL();else if(cNav==='map')rnMap()}
 
 // ── REPORTS ──
 function rnRp(){var tbs=Object.keys(rp);if(!cRT)cRT=tbs[0];document.getElementById('rTabs').innerHTML=tbs.map(function(t){return'<button class="nv '+(cRT===t?'a':'')+'" data-t="'+t+'">'+t+'<span class="ct">'+(rp[t]?rp[t].length:0)+'</span></button>'}).join('');document.querySelectorAll('[data-t]').forEach(function(b){b.onclick=function(){cRT=b.dataset.t;sC=-1;document.querySelectorAll('[data-t]').forEach(function(x){x.classList.remove('a')});b.classList.add('a');rnRT()}});document.getElementById('rSch').oninput=rnRT;document.getElementById('exBtn').onclick=exXL;document.getElementById('nwBtn').onclick=function(){fl={c:null,m:null,v:null};document.getElementById('upSec').style.display='flex';document.getElementById('mainUI').style.display='none';document.getElementById('fSt').innerHTML='';rBn.disabled=true;rBn.textContent='▶ Build CRM';fIn.value=''};rnRT()}
@@ -713,40 +605,6 @@ function rnWT(){var w=document.getElementById('wTbl'),q=(document.getElementById
 // ── LOG ──
 function rnLg(){document.getElementById('lSch').oninput=rnLE;document.getElementById('exLBtn').onclick=exLg;rnLE()}
 function rnLE(){var q=(document.getElementById('lSch').value||'').toLowerCase();var ents=[].concat(alog).reverse();gDL().reverse().forEach(function(dl){ents.push({t:dl.t,tp:'daily',ag:'System',dt:'Report: '+Object.entries(dl.ag||{}).map(function(x){return x[0]+':'+x[1].t+'leads'}).join(', ')})});ents.sort(function(a,b){return new Date(b.t)-new Date(a.t)});var fd=q?ents.filter(function(e){return(e.ag||'').toLowerCase().includes(q)||(e.dt||'').toLowerCase().includes(q)}):ents;if(!fd.length){document.getElementById('lEnt').innerHTML='<div class="em">No entries</div>';return}document.getElementById('lEnt').innerHTML=fd.slice(0,80).map(function(e){var ic=e.tp==='wa'?'📱':e.tp==='daily'?'📊':'📝';return'<div class="le"><span class="lt">'+ic+' '+new Date(e.t).toLocaleString('es-MX')+'</span> — <span class="la">'+e.ag+'</span><div class="lb2">'+e.dt+'</div></div>'}).join('')}
-
-// ── UPLOAD LOG (admin only) ──
-async function rnUL(){
-  var c=document.getElementById('ulContent');
-  c.innerHTML='<div style="padding:20px;color:var(--t2)">Loading upload history...</div>';
-  document.getElementById('ulRf').onclick=rnUL;
-  try{
-    var r=await fetch(API_BASE+'/import-log',{headers:{'Authorization':'Bearer '+APP_TOKEN}});
-    var data=await r.json();
-    if(data.status!=='ok'){c.innerHTML='<div class="em">Error: '+(data.error||'unknown')+'</div>';return}
-    var ag=data.aggregated||[];
-    if(!ag.length){c.innerHTML='<div class="em">No uploads yet</div>';return}
-    var html='<div style="margin-bottom:14px;color:var(--t2);font-size:12px">Showing last '+ag.length+' upload sessions</div>';
-    html+='<table><thead><tr><th>When</th><th>Kind</th><th>Status</th><th>Rows Total</th><th>Inserted</th><th>Duplicates</th><th>Chunks</th><th>Upload ID</th></tr></thead><tbody>';
-    ag.forEach(function(row){
-      var when=new Date(row.finished_at).toLocaleString('es-MX',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
-      var statusBg=row.all_ok?'#dcfce7':'#fee2e2',statusFg=row.all_ok?'#166534':'#991b1b',statusLbl=row.all_ok?'✅ OK':'❌ Error';
-      var kind=row.kind==='contacts'?'👥 Contacts':row.kind==='messages'?'💬 Messages':row.kind;
-      var chunks=row.chunks_expected?(row.event_count+' / '+row.chunks_expected):row.event_count;
-      html+='<tr><td>'+when+'</td>'+
-        '<td>'+kind+'</td>'+
-        '<td><span class="bd" style="background:'+statusBg+';color:'+statusFg+'">'+statusLbl+'</span></td>'+
-        '<td class="cfn">'+(row.total_rows||0).toLocaleString()+'</td>'+
-        '<td class="cfn" style="color:var(--gn);font-weight:700">+'+(row.total_inserted||0).toLocaleString()+'</td>'+
-        '<td class="cfn" style="color:var(--t2)">'+(row.total_skipped||0).toLocaleString()+'</td>'+
-        '<td>'+chunks+'</td>'+
-        '<td style="font-family:monospace;font-size:10px;color:var(--t2)">'+(row.upload_id||'').slice(0,16)+'</td></tr>';
-    });
-    html+='</tbody></table>';
-    c.innerHTML=html;
-  }catch(e){
-    c.innerHTML='<div class="em">Error loading: '+e.message+'</div>';
-  }
-}
 
 // ── EXCEL EXPORT ──
 // ══════ CALL LIST — 24h window expired, ranked by buy likelihood ══════
