@@ -288,28 +288,47 @@ async function handleMessagesChunk(csv, chunkIndex, totalChunks, uploadId) {
     });
   }
 
-  // Batch INSERT — 50 rows per round-trip = 50x faster than one-by-one
-  const BATCH = 50;
-  const cols = ['message_id', 'contact_id', 'datetime', 'message_type', 'content_type',
-                'content_raw', 'sender_type', 'channel_id', 'type_field', 'sub_type'];
-
+  // Batch INSERT — use unnest() trick to insert N rows in one round-trip via tagged template
+  // (Neon driver only supports tagged-template syntax, not sql.query())
+  const BATCH = 100;
   for (let i = 0; i < tuples.length; i += BATCH) {
     const slice = tuples.slice(i, i + BATCH);
-    const params = [];
-    const valuesSql = slice.map((t, idx) => {
-      const base = idx * cols.length;
-      cols.forEach(c => params.push(t[c]));
-      const ph = [];
-      for (let p = 1; p <= cols.length; p++) ph.push(`$${base + p}`);
-      return `(${ph.join(',')})`;
-    }).join(', ');
-    const queryStr = `INSERT INTO messages (${cols.join(', ')}) VALUES ${valuesSql} ON CONFLICT (message_id) DO NOTHING RETURNING message_id`;
+    if (slice.length === 0) continue;
+
+    // Build column arrays for unnest()
+    const message_ids = slice.map(t => t.message_id);
+    const contact_ids = slice.map(t => t.contact_id);
+    const datetimes = slice.map(t => t.datetime);
+    const message_types = slice.map(t => t.message_type);
+    const content_types = slice.map(t => t.content_type);
+    const content_raws = slice.map(t => t.content_raw);
+    const sender_types = slice.map(t => t.sender_type);
+    const channel_ids = slice.map(t => t.channel_id);
+    const type_fields = slice.map(t => t.type_field);
+    const sub_types = slice.map(t => t.sub_type);
 
     try {
-      const result = await sql.query(queryStr, params);
-      // Neon driver returns rows as an array for parameterized query
-      const inserted = Array.isArray(result) ? result.length
-                     : (result && result.rows ? result.rows.length : 0);
+      const result = await sql`
+        INSERT INTO messages (
+          message_id, contact_id, datetime, message_type, content_type,
+          content_raw, sender_type, channel_id, type_field, sub_type
+        )
+        SELECT * FROM UNNEST(
+          ${message_ids}::text[],
+          ${contact_ids}::text[],
+          ${datetimes}::timestamptz[],
+          ${message_types}::text[],
+          ${content_types}::text[],
+          ${content_raws}::text[],
+          ${sender_types}::text[],
+          ${channel_ids}::text[],
+          ${type_fields}::text[],
+          ${sub_types}::text[]
+        )
+        ON CONFLICT (message_id) DO NOTHING
+        RETURNING message_id
+      `;
+      const inserted = Array.isArray(result) ? result.length : 0;
       rowsInserted += inserted;
       rowsSkipped += (slice.length - inserted);
     } catch (e) {
