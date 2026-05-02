@@ -184,59 +184,61 @@ async function handleMessagesChunk(csv, chunkIndex, totalChunks, uploadId) {
 
   const rowsTotal = parsed.rows.length;
   let rowsInserted = 0, rowsSkipped = 0;
+  let firstError = null;
 
-  const BATCH = 200;
-  for (let i = 0; i < parsed.rows.length; i += BATCH) {
-    const slice = parsed.rows.slice(i, i + BATCH);
-    const tuples = slice.map(r => {
-      let dt = null;
-      const rawDt = (r[dtIdx] || '').trim();
-      if (rawDt) {
-        const d = new Date(rawDt.replace(' ', 'T'));
-        if (!isNaN(d)) dt = d.toISOString();
-      }
-      return {
-        message_id: (r[midIdx] || '').trim(),
-        contact_id: (r[cidIdx] || '').trim(),
-        datetime: dt,
-        message_type: ((r[mtIdx] || '') + '').toLowerCase(),
-        content_type: ((r[ctIdx] || '') + '').toLowerCase(),
-        content_raw: r[cnIdx] || '',
-        sender_type: ((r[stIdx] || '') + '').toLowerCase(),
-        channel_id: r[chIdx] || '',
-        type_field: r[tyIdx] || '',
-        sub_type: r[sbIdx] || '',
-      };
-    }).filter(t => t.message_id);
+  // Insert one-by-one using tagged template (safer with Neon serverless driver).
+  // Slower than batch INSERT but reliable; chunking happens at the HTTP layer
+  // anyway, so per-chunk we have at most ~10k rows.
+  for (let i = 0; i < parsed.rows.length; i++) {
+    const r = parsed.rows[i];
+    let dt = null;
+    const rawDt = (r[dtIdx] || '').trim();
+    if (rawDt) {
+      const d = new Date(rawDt.replace(' ', 'T'));
+      if (!isNaN(d)) dt = d.toISOString();
+    }
+    const message_id = (r[midIdx] || '').trim();
+    if (!message_id) { rowsSkipped++; continue; }
 
-    if (!tuples.length) { rowsSkipped += slice.length; continue; }
+    const contact_id = (r[cidIdx] || '').trim();
+    const message_type = ((r[mtIdx] || '') + '').toLowerCase();
+    const content_type = ((r[ctIdx] || '') + '').toLowerCase();
+    const content_raw = r[cnIdx] || '';
+    const sender_type = ((r[stIdx] || '') + '').toLowerCase();
+    const channel_id = r[chIdx] || '';
+    const type_field = r[tyIdx] || '';
+    const sub_type = r[sbIdx] || '';
 
-    const cols = ['message_id', 'contact_id', 'datetime', 'message_type', 'content_type',
-                  'content_raw', 'sender_type', 'channel_id', 'type_field', 'sub_type'];
-    const params = [];
-    const valuesSql = tuples.map((t, idx) => {
-      const base = idx * cols.length;
-      cols.forEach(c => params.push(t[c]));
-      return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10})`;
-    }).join(', ');
-    const queryStr = `INSERT INTO messages (${cols.join(', ')}) VALUES ${valuesSql} ON CONFLICT (message_id) DO NOTHING`;
     try {
-      const result = await sql.query(queryStr, params);
-      const inserted = (result && result.rowCount) || 0;
-      rowsInserted += inserted;
-      rowsSkipped += (tuples.length - inserted);
+      const result = await sql`
+        INSERT INTO messages (
+          message_id, contact_id, datetime, message_type, content_type,
+          content_raw, sender_type, channel_id, type_field, sub_type
+        ) VALUES (
+          ${message_id}, ${contact_id}, ${dt}, ${message_type}, ${content_type},
+          ${content_raw}, ${sender_type}, ${channel_id}, ${type_field}, ${sub_type}
+        )
+        ON CONFLICT (message_id) DO NOTHING
+        RETURNING message_id
+      `;
+      // Neon tagged-template returns array of rows
+      if (result && result.length > 0) rowsInserted++;
+      else rowsSkipped++;
     } catch (e) {
-      console.error('Batch insert failed:', e.message);
-      rowsSkipped += tuples.length;
+      rowsSkipped++;
+      if (!firstError) firstError = e.message;
+      console.error('Insert failed for msg', message_id, ':', e.message);
     }
   }
 
   await sql`
     INSERT INTO import_log (kind, source, upload_id, chunk_index, total_chunks,
-                            rows_total, rows_inserted, rows_skipped, status)
+                            rows_total, rows_inserted, rows_skipped, status, details)
     VALUES ('messages', 'csv-chunk', ${uploadId || null},
             ${chunkIndex}, ${totalChunks},
-            ${rowsTotal}, ${rowsInserted}, ${rowsSkipped}, 'ok')
+            ${rowsTotal}, ${rowsInserted}, ${rowsSkipped},
+            ${firstError ? 'error' : 'ok'},
+            ${firstError ? JSON.stringify({ firstError }) : null})
   `;
 
   // On last chunk, prune anything older than 6 months
@@ -252,6 +254,7 @@ async function handleMessagesChunk(csv, chunkIndex, totalChunks, uploadId) {
     status: 'ok', kind: 'messages',
     chunkIndex, totalChunks,
     rowsTotal, rowsInserted, rowsSkipped, pruned,
+    firstError,
     isLastChunk: chunkIndex === totalChunks - 1,
   };
 }
