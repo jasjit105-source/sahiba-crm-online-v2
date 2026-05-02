@@ -123,10 +123,86 @@ function colMap(header) {
   return m;
 }
 
-async function handleContactsUpload(csv, uploadId) {
+async function handleContactsUpload(csv, uploadId, chunkIndex, totalChunks) {
   const sql = db();
-  if (!csv || csv.length < 50) return { status: 'error', error: 'Empty contacts CSV' };
+  if (!csv) return { status: 'error', error: 'Empty contacts chunk' };
 
+  // SINGLE-SHOT path: small contacts CSV uploaded as one piece
+  // (kept for backward compat and small accounts)
+  if (chunkIndex == null || totalChunks == null || totalChunks === 1) {
+    if (csv.length < 50) return { status: 'error', error: 'Empty contacts CSV' };
+    return await finalizeContactsUpload(csv, uploadId);
+  }
+
+  // CHUNKED path: accumulate chunks in a staging table, finalize on last chunk
+  await sql`
+    CREATE TABLE IF NOT EXISTS contacts_staging (
+      upload_id TEXT NOT NULL,
+      chunk_index INTEGER NOT NULL,
+      csv_text TEXT NOT NULL,
+      received_at TIMESTAMPTZ DEFAULT NOW(),
+      PRIMARY KEY (upload_id, chunk_index)
+    )`;
+
+  // Store this chunk
+  await sql`
+    INSERT INTO contacts_staging (upload_id, chunk_index, csv_text)
+    VALUES (${uploadId}, ${chunkIndex}, ${csv})
+    ON CONFLICT (upload_id, chunk_index) DO UPDATE SET csv_text = EXCLUDED.csv_text
+  `;
+
+  // Log this chunk in import_log
+  await sql`
+    INSERT INTO import_log (kind, source, upload_id, chunk_index, total_chunks,
+                            rows_total, rows_inserted, rows_skipped, status)
+    VALUES ('contacts-chunk', 'csv-chunk', ${uploadId},
+            ${chunkIndex}, ${totalChunks}, 0, 0, 0, 'ok')
+  `;
+
+  // If this is NOT the last chunk, just acknowledge
+  if (chunkIndex < totalChunks - 1) {
+    return { status: 'ok', kind: 'contacts-chunk', chunkIndex, totalChunks, isLastChunk: false };
+  }
+
+  // LAST CHUNK: assemble all chunks in order
+  const allChunks = await sql`
+    SELECT chunk_index, csv_text FROM contacts_staging
+    WHERE upload_id = ${uploadId} ORDER BY chunk_index ASC
+  `;
+
+  if (allChunks.length !== totalChunks) {
+    return {
+      status: 'error',
+      error: `Missing chunks: got ${allChunks.length} of ${totalChunks}. Try uploading again.`,
+    };
+  }
+
+  // Reassemble: first chunk has the header, subsequent chunks have header too (from frontend split logic).
+  // We need to drop headers from all chunks except the first.
+  let assembled = allChunks[0].csv_text;
+  for (let i = 1; i < allChunks.length; i++) {
+    const chunk = allChunks[i].csv_text;
+    const firstNL = chunk.indexOf('\n');
+    if (firstNL >= 0) {
+      // Drop the duplicated header, keep body
+      const body = chunk.slice(firstNL + 1);
+      // Make sure we have a newline boundary
+      if (!assembled.endsWith('\n')) assembled += '\n';
+      assembled += body;
+    }
+  }
+
+  // Now finalize using the assembled CSV
+  const result = await finalizeContactsUpload(assembled, uploadId);
+
+  // Cleanup staging
+  await sql`DELETE FROM contacts_staging WHERE upload_id = ${uploadId}`;
+
+  return { ...result, isLastChunk: true, chunksAssembled: totalChunks };
+}
+
+async function finalizeContactsUpload(csv, uploadId) {
+  const sql = db();
   const parsed = parseCsv(csv);
   const cm = colMap(parsed.header);
   const idIdx = cm['contactid'] != null ? cm['contactid']
@@ -287,7 +363,12 @@ exports.handler = async (event) => {
     const body = parseBody(event);
 
     if (body.kind === 'contacts' && typeof body.csv === 'string') {
-      return ok(await handleContactsUpload(body.csv, body.uploadId));
+      return ok(await handleContactsUpload(
+        body.csv,
+        body.uploadId,
+        body.chunkIndex != null ? parseInt(body.chunkIndex, 10) : null,
+        body.totalChunks != null ? parseInt(body.totalChunks, 10) : null
+      ));
     }
     if (body.kind === 'messages' && typeof body.csv === 'string') {
       return ok(await handleMessagesChunk(
