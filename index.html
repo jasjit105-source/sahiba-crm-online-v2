@@ -323,13 +323,50 @@ async function uploadToNeon(){
     return chunks;
   }
 
+  // Send a chunk with retries — gracefully handles 504 Gateway Timeouts
+  // by retrying up to 3 times with backoff.
+  async function sendChunkWithRetry(payload, chunkLabel){
+    var lastErr=null;
+    for(var attempt=1;attempt<=3;attempt++){
+      try{
+        var res=await apiPost('/upload',payload);
+        var raw=await res.text();
+        // If it's HTML (timeout page), throw and retry
+        if(raw.charAt(0)==='<'){
+          lastErr=new Error('HTTP '+res.status+' (timeout)');
+          if(attempt<3){
+            await new Promise(function(r){setTimeout(r,1000*attempt)});// 1s, 2s backoff
+            continue;
+          }
+          throw lastErr;
+        }
+        var data;
+        try{data=JSON.parse(raw)}catch(e){
+          throw new Error(chunkLabel+' got non-JSON response (HTTP '+res.status+'): '+raw.slice(0,200));
+        }
+        if(data.status!=='ok'){
+          throw new Error(chunkLabel+' failed: '+(data.error||'unknown'));
+        }
+        return data;
+      }catch(e){
+        lastErr=e;
+        if(attempt<3 && /timeout|HTTP 5\d\d/i.test(e.message||'')){
+          await new Promise(function(r){setTimeout(r,1000*attempt)});
+          continue;
+        }
+        throw e;
+      }
+    }
+    throw lastErr;
+  }
+
   try{
     var cTxt=await readFile(fl.c);
     var mTxt=await readFile(fl.m);
     var uploadId=genUploadId();
 
     // === PHASE 1: contacts (chunked) ===
-    var CHUNK_SIZE=2*1024*1024;// 2 MB per chunk (under Netlify's 6 MB limit)
+    var CHUNK_SIZE=1*1024*1024;// 1 MB per chunk (safer under Netlify's 10s function timeout)
     var contactChunks=splitCsvIntoChunks(cTxt,CHUNK_SIZE);
     var totalContactChunks=contactChunks.length;
     var cData=null;
@@ -338,21 +375,13 @@ async function uploadToNeon(){
       var cpct=Math.round(((ci+1)/totalContactChunks)*100);
       st.innerHTML='☁️ Uploading contacts — chunk '+(ci+1)+' / '+totalContactChunks+' ('+cpct+'%)... '+
         '<div style="background:#e5e7eb;border-radius:4px;height:6px;overflow:hidden;margin-top:6px"><div style="background:var(--gn);height:100%;width:'+cpct+'%;transition:width .3s"></div></div>';
-      var cRes=await apiPost('/upload',{
+      var cChunkData=await sendChunkWithRetry({
         kind:'contacts',
         csv:contactChunks[ci],
         chunkIndex:ci,
         totalChunks:totalContactChunks,
         uploadId:uploadId
-      });
-      var cRaw=await cRes.text();
-      var cChunkData;
-      try{cChunkData=JSON.parse(cRaw)}catch(e){
-        throw new Error('Contacts chunk '+(ci+1)+' got non-JSON response (HTTP '+cRes.status+'): '+cRaw.slice(0,200));
-      }
-      if(cChunkData.status!=='ok'){
-        throw new Error('Contacts chunk '+(ci+1)+' failed: '+(cChunkData.error||'unknown'));
-      }
+      },'Contacts chunk '+(ci+1));
       // Last chunk returns the final stats (rows, newContacts)
       if(cChunkData.isLastChunk||cChunkData.kind==='contacts'){
         cData=cChunkData;
@@ -372,21 +401,13 @@ async function uploadToNeon(){
       var pct=Math.round(((i+1)/chunks.length)*100);
       st.innerHTML='☁️ Uploading messages — chunk '+(i+1)+' / '+totalChunks+' ('+pct+'%)... '+
         '<div style="background:#e5e7eb;border-radius:4px;height:6px;overflow:hidden;margin-top:6px"><div style="background:var(--gn);height:100%;width:'+pct+'%;transition:width .3s"></div></div>';
-      var mRes=await apiPost('/upload',{
+      var mData=await sendChunkWithRetry({
         kind:'messages',
         csv:chunks[i],
         chunkIndex:i,
         totalChunks:totalChunks,
         uploadId:uploadId
-      });
-      var mData;
-      var rawText=await mRes.text();
-      try{mData=JSON.parse(rawText)}catch(e){
-        throw new Error('Chunk '+(i+1)+' got non-JSON response (HTTP '+mRes.status+'): '+rawText.slice(0,200));
-      }
-      if(mData.status!=='ok'){
-        throw new Error('Messages chunk '+(i+1)+' failed: '+(mData.error||'unknown'));
-      }
+      },'Messages chunk '+(i+1));
       totalInserted+=mData.rowsInserted||0;
       totalSkipped+=mData.rowsSkipped||0;
     }

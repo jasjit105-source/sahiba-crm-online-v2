@@ -262,9 +262,8 @@ async function handleMessagesChunk(csv, chunkIndex, totalChunks, uploadId) {
   let rowsInserted = 0, rowsSkipped = 0;
   let firstError = null;
 
-  // Insert one-by-one using tagged template (safer with Neon serverless driver).
-  // Slower than batch INSERT but reliable; chunking happens at the HTTP layer
-  // anyway, so per-chunk we have at most ~10k rows.
+  // Build all tuples first, then batch-insert 50 at a time
+  const tuples = [];
   for (let i = 0; i < parsed.rows.length; i++) {
     const r = parsed.rows[i];
     let dt = null;
@@ -275,35 +274,48 @@ async function handleMessagesChunk(csv, chunkIndex, totalChunks, uploadId) {
     }
     const message_id = (r[midIdx] || '').trim();
     if (!message_id) { rowsSkipped++; continue; }
+    tuples.push({
+      message_id,
+      contact_id: (r[cidIdx] || '').trim(),
+      datetime: dt,
+      message_type: ((r[mtIdx] || '') + '').toLowerCase(),
+      content_type: ((r[ctIdx] || '') + '').toLowerCase(),
+      content_raw: r[cnIdx] || '',
+      sender_type: ((r[stIdx] || '') + '').toLowerCase(),
+      channel_id: r[chIdx] || '',
+      type_field: r[tyIdx] || '',
+      sub_type: r[sbIdx] || '',
+    });
+  }
 
-    const contact_id = (r[cidIdx] || '').trim();
-    const message_type = ((r[mtIdx] || '') + '').toLowerCase();
-    const content_type = ((r[ctIdx] || '') + '').toLowerCase();
-    const content_raw = r[cnIdx] || '';
-    const sender_type = ((r[stIdx] || '') + '').toLowerCase();
-    const channel_id = r[chIdx] || '';
-    const type_field = r[tyIdx] || '';
-    const sub_type = r[sbIdx] || '';
+  // Batch INSERT — 50 rows per round-trip = 50x faster than one-by-one
+  const BATCH = 50;
+  const cols = ['message_id', 'contact_id', 'datetime', 'message_type', 'content_type',
+                'content_raw', 'sender_type', 'channel_id', 'type_field', 'sub_type'];
+
+  for (let i = 0; i < tuples.length; i += BATCH) {
+    const slice = tuples.slice(i, i + BATCH);
+    const params = [];
+    const valuesSql = slice.map((t, idx) => {
+      const base = idx * cols.length;
+      cols.forEach(c => params.push(t[c]));
+      const ph = [];
+      for (let p = 1; p <= cols.length; p++) ph.push(`$${base + p}`);
+      return `(${ph.join(',')})`;
+    }).join(', ');
+    const queryStr = `INSERT INTO messages (${cols.join(', ')}) VALUES ${valuesSql} ON CONFLICT (message_id) DO NOTHING RETURNING message_id`;
 
     try {
-      const result = await sql`
-        INSERT INTO messages (
-          message_id, contact_id, datetime, message_type, content_type,
-          content_raw, sender_type, channel_id, type_field, sub_type
-        ) VALUES (
-          ${message_id}, ${contact_id}, ${dt}, ${message_type}, ${content_type},
-          ${content_raw}, ${sender_type}, ${channel_id}, ${type_field}, ${sub_type}
-        )
-        ON CONFLICT (message_id) DO NOTHING
-        RETURNING message_id
-      `;
-      // Neon tagged-template returns array of rows
-      if (result && result.length > 0) rowsInserted++;
-      else rowsSkipped++;
+      const result = await sql.query(queryStr, params);
+      // Neon driver returns rows as an array for parameterized query
+      const inserted = Array.isArray(result) ? result.length
+                     : (result && result.rows ? result.rows.length : 0);
+      rowsInserted += inserted;
+      rowsSkipped += (slice.length - inserted);
     } catch (e) {
-      rowsSkipped++;
+      rowsSkipped += slice.length;
       if (!firstError) firstError = e.message;
-      console.error('Insert failed for msg', message_id, ':', e.message);
+      console.error('Batch insert failed:', e.message);
     }
   }
 
