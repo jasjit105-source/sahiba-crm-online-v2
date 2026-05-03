@@ -31,6 +31,16 @@
   status = 200
 
 [[redirects]]
-  from = "/api/sales-sync"
-  to = "/.netlify/functions/sales-sync"
+  from = "/api/sync-sales"
+  to = "/.netlify/functions/sync-sales"
+  status = 200
+
+[[redirects]]
+  from = "/api/sync-sales/*"
+  to = "/.netlify/functions/sync-sales"
+  status = 200
+
+[[redirects]]
+  from = "/api/customer-profile"
+  to = "/.netlify/functions/customer-profile"
   status = 200

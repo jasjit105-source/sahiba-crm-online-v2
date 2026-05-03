@@ -99,19 +99,21 @@ exports.handler = async (event) => {
     await ensureSchema();
     const sql = db();
 
-    // Parse window from query string (?days=30 default)
+    // Parse window from query string (?days=7 default, max 90 to keep payload <6MB)
     const url = new URL(event.rawUrl || `http://x${event.path}?${event.rawQuery || ''}`);
-    const windowDays = Math.max(1, Math.min(365, parseInt(url.searchParams.get('days') || '90', 10)));
+    const windowDays = Math.max(1, Math.min(90, parseInt(url.searchParams.get('days') || '7', 10)));
 
-    const contacts = await sql`
-      SELECT csv_text, row_count, uploaded_at
+    // Build messages CSV first — filtered to window (~10k rows for 7 days)
+    const { csv: messagesCSV, count: messageCount } = await buildMessagesCsv(windowDays);
+
+    // Get the latest contacts blob metadata (don't load CSV text yet)
+    const contactsMeta = await sql`
+      SELECT row_count, uploaded_at
       FROM csv_blobs WHERE kind = 'contacts'
       ORDER BY uploaded_at DESC LIMIT 1
     `;
 
-    const { csv: messagesCSV, count: messageCount } = await buildMessagesCsv(windowDays);
-
-    if (!contacts.length && messageCount === 0) {
+    if (!contactsMeta.length && messageCount === 0) {
       return ok({
         status: 'ok', contactsCSV: '', messagesCSV: '',
         contactCount: 0, messageCount: 0,
@@ -119,7 +121,51 @@ exports.handler = async (event) => {
       });
     }
 
-    const lastUpload = contacts[0] ? contacts[0].uploaded_at : null;
+    // Find the active contact_ids — only those with messages in the window
+    // This is the key optimization: 120k contacts → ~5k active contacts
+    const activeIdsRows = await sql`
+      SELECT DISTINCT contact_id
+      FROM messages
+      WHERE datetime >= ${new Date(Date.now() - windowDays * 86400000).toISOString()}
+        AND contact_id IS NOT NULL AND contact_id <> ''
+    `;
+    const activeIds = new Set(activeIdsRows.map(r => r.contact_id));
+
+    // Now load full contacts CSV and filter rows by active_ids
+    let contactsCSV = '';
+    let contactCount = 0;
+    if (contactsMeta.length) {
+      const contactsBlob = await sql`
+        SELECT csv_text FROM csv_blobs WHERE kind = 'contacts'
+        ORDER BY uploaded_at DESC LIMIT 1
+      `;
+      const fullCsv = contactsBlob[0].csv_text;
+      // Quick split-based filter — find Contact ID column index, keep only rows where it's in activeIds
+      const lines = fullCsv.split('\n');
+      if (lines.length > 1) {
+        const header = lines[0];
+        // Detect Contact ID column (case-insensitive)
+        const headerCols = header.split(',').map(s => s.replace(/^"|"$/g, '').trim().toLowerCase());
+        let idCol = headerCols.indexOf('contact id');
+        if (idCol < 0) idCol = headerCols.indexOf('id');
+        if (idCol < 0) idCol = 0;
+
+        const filtered = [header];
+        for (let i = 1; i < lines.length; i++) {
+          const ln = lines[i];
+          if (!ln) continue;
+          // Cheap CSV split — works because contact IDs are pure digits, no quoted commas
+          const cols = ln.split(',');
+          const cid = (cols[idCol] || '').replace(/^"|"$/g, '').trim();
+          if (activeIds.has(cid)) filtered.push(ln);
+        }
+        contactsCSV = filtered.join('\n');
+        contactCount = filtered.length - 1;
+      }
+    }
+
+    const lastUpload = contactsMeta[0] ? contactsMeta[0].uploaded_at : null;
+    const totalContacts = contactsMeta[0] ? contactsMeta[0].row_count : 0;
 
     let newContactCount = 0;
     try {
@@ -129,9 +175,10 @@ exports.handler = async (event) => {
 
     return ok({
       status: 'ok',
-      contactsCSV: contacts[0] ? contacts[0].csv_text : '',
+      contactsCSV,
       messagesCSV,
-      contactCount: contacts[0] ? contacts[0].row_count : 0,
+      contactCount,         // active contacts in window
+      totalContacts,        // total in database (for info)
       messageCount,
       lastUpload,
       newContactCount,

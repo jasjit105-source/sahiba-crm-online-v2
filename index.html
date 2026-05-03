@@ -81,51 +81,99 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--bd);vertical-align:middl
 <p style="font-size:13px;color:var(--t2)">Lead Management Dashboard</p>
 </div>
 
-<div style="background:var(--s);border:1px solid var(--bd);border-radius:14px;padding:24px;box-shadow:var(--sh)">
-<div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
-<div style="width:42px;height:42px;background:linear-gradient(135deg,#22c55e,#16a34a);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff">📊</div>
-<div><h3 style="font-size:15px;font-weight:700;margin-bottom:2px">Load Existing Data</h3>
-<p style="font-size:12px;color:var(--t2);margin:0">Data persists in the database until you upload new files</p></div>
+<div id="uploadSection" style="background:linear-gradient(180deg,#ffffff 0%,#fafbff 100%);border:1px solid var(--bd);border-radius:18px;padding:28px;box-shadow:0 4px 20px -8px rgba(37,99,235,0.15),0 1px 3px rgba(0,0,0,0.04)">
+
+<!-- Status pill at top -->
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;padding:10px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px">
+<div style="display:flex;align-items:center;gap:8px">
+<div style="width:8px;height:8px;background:#22c55e;border-radius:50%;box-shadow:0 0 0 3px rgba(34,197,94,0.2)"></div>
+<span style="font-size:12px;font-weight:600;color:#15803d">Database Active</span>
 </div>
-<button class="sync-btn" id="loadCloudBtn" style="width:100%;font-size:14px;padding:13px 24px;background:linear-gradient(135deg,#22c55e,#16a34a);border-radius:10px;font-weight:700">🔄 Load Data</button>
-<div class="sync-status" id="syncSt" style="margin-top:12px"></div>
+<span id="dbStatus" style="font-size:11px;color:#16a34a;font-weight:500">Ready</span>
+</div>
+
+<!-- Primary action: Load -->
+<button class="sync-btn" id="loadCloudBtn" style="width:100%;font-size:15px;padding:16px 24px;background:linear-gradient(135deg,#22c55e,#16a34a);border-radius:12px;font-weight:700;border:none;color:#fff;cursor:pointer;box-shadow:0 4px 12px -2px rgba(34,197,94,0.4);transition:transform 0.1s,box-shadow 0.1s" onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 6px 16px -2px rgba(34,197,94,0.5)'" onmouseout="this.style.transform='';this.style.boxShadow='0 4px 12px -2px rgba(34,197,94,0.4)'">🔄 Load Latest Data</button>
+<div class="sync-status" id="syncSt" style="margin-top:10px;text-align:center;font-size:12px;color:var(--t2)"></div>
 <div class="sync-progress" id="syncProg"><div class="bar" id="syncBar" style="width:0%"></div></div>
+
+<!-- Divider -->
+<div style="display:flex;align-items:center;gap:12px;margin:24px 0 18px">
+<div style="flex:1;height:1px;background:var(--bd)"></div>
+<span style="font-size:10px;color:var(--t3);font-weight:600;letter-spacing:1.5px;text-transform:uppercase">Or Update Database</span>
+<div style="flex:1;height:1px;background:var(--bd)"></div>
 </div>
 
-<div id="uploadSection">
-<div style="display:flex;align-items:center;gap:12px;color:var(--t3);font-size:11px;text-transform:uppercase;letter-spacing:1px"><div style="flex:1;height:1px;background:var(--bd)"></div>Upload New Data<div style="flex:1;height:1px;background:var(--bd)"></div></div>
-
-<div style="background:var(--s);border:1px solid var(--bd);border-radius:14px;padding:24px;box-shadow:var(--sh)">
-<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
-<div style="width:42px;height:42px;background:linear-gradient(135deg,#2563EB,#1d4ed8);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff">📤</div>
-<div><h3 style="font-size:15px;font-weight:700;margin-bottom:2px">Upload from Respond.io</h3>
-<p style="font-size:12px;color:var(--t2);margin:0">New contacts will be flagged with 🆕</p></div>
+<!-- Upload area, more compact -->
+<div class="dz" id="dz" style="border-radius:12px;padding:20px;margin-bottom:14px;border:2px dashed #cbd5e1;background:#f8fafc;text-align:center;transition:border-color 0.2s,background 0.2s">
+<div style="font-size:24px;margin-bottom:6px">📥</div>
+<h3 style="font-size:13px;margin-bottom:4px;font-weight:700;color:var(--t)">Drop Contacts + Messages CSVs</h3>
+<p style="font-size:11px;margin:0 0 10px;color:var(--t2)">Exported from Respond.io</p>
+<div class="cta" style="font-size:12px;padding:7px 18px;margin-top:4px;display:inline-block">Choose Files</div>
 </div>
-<div class="dz" id="dz" style="border-radius:10px;padding:18px;margin-bottom:14px"><h3 style="font-size:13px;margin-bottom:4px">📂 Drop Contacts + Messages CSVs</h3><p style="font-size:11px;margin:0">Export from Respond.io</p><div class="cta" style="font-size:12px;padding:6px 16px;margin-top:8px">Choose Files</div></div>
 <input type="file" id="fIn" class="fi" multiple accept=".csv">
 <div class="fs" id="fSt" style="margin-bottom:12px"></div>
-<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:8px 12px;background:var(--s2);border-radius:8px">
-<label style="font-size:12px;font-weight:600;color:var(--t2)">📅 Window:</label>
-<select id="daysSel" style="padding:5px 10px;border-radius:7px;border:1px solid var(--bd);font-size:13px;font-weight:700;background:var(--s);cursor:pointer">
-<option value="1">1 day</option>
-<option value="2" selected>2 days</option>
-<option value="3">3 days</option>
-<option value="5">5 days</option>
-<option value="7">7 days</option>
-<option value="10">10 days</option>
-<option value="14">14 days</option>
-<option value="30">30 days</option>
+
+<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:10px 14px;background:#f1f5f9;border-radius:10px">
+<label style="font-size:12px;font-weight:600;color:var(--t2)">📅 Date window:</label>
+<select id="daysSel" style="padding:6px 12px;border-radius:8px;border:1px solid var(--bd);font-size:13px;font-weight:700;background:var(--s);cursor:pointer;flex:1">
+<option value="1">Last 1 day</option>
+<option value="2">Last 2 days</option>
+<option value="3">Last 3 days</option>
+<option value="5">Last 5 days</option>
+<option value="7" selected>Last 7 days</option>
+<option value="10">Last 10 days</option>
+<option value="14">Last 14 days</option>
+<option value="30">Last 30 days</option>
 </select>
 </div>
-<div style="display:flex;gap:10px">
-<button class="rb" id="rBn" disabled style="flex:1;border-radius:10px;font-size:13px">▶ Build Locally</button>
-<button class="rb" id="uploadBtn" disabled style="flex:1;border-radius:10px;background:linear-gradient(135deg,#2563EB,#1d4ed8);font-size:13px">📤 Upload & Update</button>
-</div>
-<div class="sync-status" id="uploadSt" style="margin-top:10px"></div>
-</div>
+
+<button class="rb" id="uploadBtn" disabled style="width:100%;border-radius:12px;background:linear-gradient(135deg,#2563EB,#1d4ed8);font-size:14px;padding:14px;font-weight:700;color:#fff;border:none;cursor:pointer;transition:transform 0.1s,box-shadow 0.1s">📤 Upload & Update Database</button>
+<button class="rb" id="rBn" disabled style="width:100%;border-radius:10px;font-size:11px;padding:8px;margin-top:8px;background:transparent;border:1px solid var(--bd);color:var(--t2);font-weight:600;cursor:pointer">▶ Or Build Locally (without saving)</button>
+<div class="sync-status" id="uploadSt" style="margin-top:10px;text-align:center;font-size:12px"></div>
 
 </div>
+
+<!-- Customer Intelligence (SQL Server sync) — admin only -->
+<div id="salesSyncSection" style="margin-top:18px;background:linear-gradient(180deg,#fdf4ff 0%,#faf5ff 100%);border:1px solid #e9d5ff;border-radius:18px;padding:24px;box-shadow:0 4px 20px -8px rgba(168,85,247,0.15)">
+<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+<div style="width:38px;height:38px;background:linear-gradient(135deg,#a855f7,#7c3aed);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;color:#fff">🧠</div>
+<div>
+<h3 style="font-size:14px;font-weight:700;margin:0">Customer Intelligence</h3>
+<p style="font-size:11px;color:var(--t2);margin:0">Sync purchase history from SQL Server → enrich agent profiles</p>
 </div>
+</div>
+
+<div id="salesSyncStats" style="display:flex;gap:8px;margin-bottom:12px;font-size:11px;flex-wrap:wrap">
+<div style="flex:1;min-width:90px;padding:8px;background:rgba(168,85,247,0.08);border-radius:8px;text-align:center">
+<div style="font-weight:700;font-size:16px;color:#7c3aed" id="syStatCustomers">—</div>
+<div style="color:var(--t2);font-size:10px">Customers</div>
+</div>
+<div style="flex:1;min-width:90px;padding:8px;background:rgba(168,85,247,0.08);border-radius:8px;text-align:center">
+<div style="font-weight:700;font-size:16px;color:#7c3aed" id="syStatPurchases">—</div>
+<div style="color:var(--t2);font-size:10px">Purchases</div>
+</div>
+<div style="flex:1;min-width:90px;padding:8px;background:rgba(34,197,94,0.08);border-radius:8px;text-align:center">
+<div style="font-weight:700;font-size:16px;color:#16a34a" id="syStatVip">—</div>
+<div style="color:var(--t2);font-size:10px">VIPs</div>
+</div>
+<div style="flex:1;min-width:90px;padding:8px;background:rgba(245,158,11,0.08);border-radius:8px;text-align:center">
+<div style="font-weight:700;font-size:16px;color:#d97706" id="syStatLapsed">—</div>
+<div style="color:var(--t2);font-size:10px">Lapsed</div>
+</div>
+<div style="flex:1;min-width:90px;padding:8px;background:rgba(59,130,246,0.08);border-radius:8px;text-align:center">
+<div style="font-weight:700;font-size:16px;color:#2563EB" id="syStatBeach">—</div>
+<div style="color:var(--t2);font-size:10px">🏖 Beach</div>
+</div>
+</div>
+
+<button id="syncSalesBtn" style="width:100%;padding:12px;border-radius:10px;background:linear-gradient(135deg,#a855f7,#7c3aed);color:#fff;border:none;font-weight:700;font-size:13px;cursor:pointer">⚡ Sync SQL Server → Neon</button>
+<button id="syncSalesResetBtn" style="width:100%;padding:7px;border-radius:8px;background:transparent;color:var(--t2);border:1px solid var(--bd);font-size:10px;font-weight:600;cursor:pointer;margin-top:6px">↻ Reset cursor & re-sync from start</button>
+
+<div id="syncSalesStatus" style="margin-top:10px;font-size:11px;color:var(--t2);text-align:center"></div>
+<div class="sync-progress" id="syncSalesProg"><div class="bar" id="syncSalesBar" style="width:0%"></div></div>
+</div>
+
 </div>
 <div id="mainUI" style="display:none">
 <div class="sr" id="sR"></div>
@@ -171,15 +219,7 @@ var IS_ADMIN=!VIEW_MODE;
 var APP_TOKEN='sahiba2026';// matches Netlify env var
 
 if(IS_ADMIN){
-  var stored=localStorage.getItem('sahiba_admin_pass');
-  if(stored!=='1993'){
-    var pass=prompt('Admin Password (Jessie only):');
-    if(pass!=='1993'){
-      document.body.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;color:#dc2626;font-size:18px">Access Denied</div>';
-      throw new Error('access_denied');
-    }
-    localStorage.setItem('sahiba_admin_pass','1993');
-  }
+  // Admin access — no password required (URL is private, kept by Jessie only)
 }else{
   // Agent view: hide upload UI completely + auto-load data
   setTimeout(function(){
@@ -277,7 +317,8 @@ async function loadFromDB(){
   btn.disabled=true;btn.textContent='⏳ Loading...';
   st.innerHTML='📡 Loading data from database...';
   try{
-    var r=await fetch(API_BASE+'/data');
+    var days=parseInt((document.getElementById('daysSel')||{}).value)||7;
+    var r=await fetch(API_BASE+'/data?days='+days);
     var data=await r.json();
     if(data.status!=='ok'||!data.contactsCSV){
       st.innerHTML='⚠️ No data yet. Upload Contacts + Messages CSVs to get started.';
@@ -293,9 +334,18 @@ async function loadFromDB(){
     var newBadge=data.newContactCount>0?' | <span style="color:var(--or);font-weight:700">🆕 '+data.newContactCount+' new contacts</span>':'';
     var syncDate=data.lastUpload?new Date(data.lastUpload).toLocaleString('es-MX',{timeZone:'America/Mexico_City'}):'—';
     st.innerHTML='<b style="color:var(--gn)">✅ '+cRows.length+' contacts, '+mRows.length+' messages</b>'+newBadge+'<br><span style="font-size:11px;color:var(--t2)">Last upload: '+syncDate+'</span>';
-    btn.textContent='🔄 Load Data';btn.disabled=false;
+    btn.textContent='🔄 Load Latest Data';btn.disabled=false;
+    // Auto-scroll to CRM (only on initial load; agents auto-load on page load and stay at top)
+    if(IS_ADMIN){
+      setTimeout(function(){
+        var mainUI=document.getElementById('mainUI');
+        if(mainUI&&mainUI.style.display!=='none'){
+          mainUI.scrollIntoView({behavior:'smooth',block:'start'});
+        }
+      },200);
+    }
   }catch(e){
-    st.innerHTML='❌ '+e.message;btn.textContent='🔄 Load Data';btn.disabled=false;
+    st.innerHTML='❌ '+e.message;btn.textContent='🔄 Load Latest Data';btn.disabled=false;
   }
 }
 
@@ -427,14 +477,21 @@ async function uploadToNeon(){
     var newBadge=cData.newContacts>0?' | <span style="color:var(--or);font-weight:700">🆕 '+cData.newContacts+' NEW contacts</span>':'';
     st.innerHTML='<b style="color:var(--gn)">✅ Uploaded! '+cData.rows+' contacts, '+totalInserted+' new messages</b>'+
       ' <span style="color:var(--t2);font-size:11px">('+totalSkipped+' duplicates skipped, '+totalChunks+' chunks)</span>'+newBadge;
-    btn.textContent='📤 Upload & Update';btn.disabled=false;
+    btn.textContent='📤 Upload & Update Database';btn.disabled=false;
 
     // Auto-load the dashboard
     WD=parseInt(document.getElementById('daysSel').value);
-    loadFromDB();
+    await loadFromDB();
+    // Auto-scroll to the CRM dashboard so user immediately sees the result
+    setTimeout(function(){
+      var mainUI=document.getElementById('mainUI');
+      if(mainUI&&mainUI.style.display!=='none'){
+        mainUI.scrollIntoView({behavior:'smooth',block:'start'});
+      }
+    },200);
   }catch(e){
     console.error(e);
-    st.innerHTML='❌ '+e.message;btn.textContent='📤 Upload & Update';btn.disabled=false;
+    st.innerHTML='❌ '+e.message;btn.textContent='📤 Upload & Update Database';btn.disabled=false;
   }
 }
 
@@ -445,6 +502,91 @@ document.getElementById('rsBtn').onclick=function(){
   document.getElementById('mainUI').style.display='none';
   loadFromDB();
 };
+
+// =====================================================================
+// SQL Server sync — admin-triggered, paginated, resumable
+// =====================================================================
+async function refreshSyncStats(){
+  try{
+    var r=await fetch(API_BASE+'/sync-sales',{method:'GET'});
+    if(!r.ok)return;
+    var d=await r.json();
+    if(d.totals){
+      document.getElementById('syStatCustomers').textContent=(d.totals.customers||0).toLocaleString();
+      document.getElementById('syStatPurchases').textContent=(d.totals.purchases||0).toLocaleString();
+      document.getElementById('syStatVip').textContent=(d.totals.vip_customers||0).toLocaleString();
+      document.getElementById('syStatLapsed').textContent=(d.totals.lapsed_customers||0).toLocaleString();
+      document.getElementById('syStatBeach').textContent=(d.totals.beach_customers||0).toLocaleString();
+    }
+  }catch(e){console.error('stats fetch:',e)}
+}
+
+async function runSyncSales(reset){
+  var btn=document.getElementById('syncSalesBtn');
+  var st=document.getElementById('syncSalesStatus');
+  var bar=document.getElementById('syncSalesBar');
+  var prog=document.getElementById('syncSalesProg');
+  btn.disabled=true;btn.textContent='⏳ Syncing...';
+  prog.style.display='block';bar.style.width='5%';
+  var totalRows=0;
+  var pass=0;
+  var maxPasses=200; // safety limit (each pass = up to ~25k rows)
+  try{
+    while(pass<maxPasses){
+      pass++;
+      st.innerHTML='⚡ Sync pass '+pass+'... ('+totalRows.toLocaleString()+' rows so far)';
+      var r=await fetch(API_BASE+'/sync-sales',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+APP_TOKEN},
+        body:JSON.stringify({store:'all',reset:(pass===1&&reset)})
+      });
+      if(!r.ok){
+        var t=await r.text().catch(()=>'');
+        throw new Error('Sync failed ('+r.status+'): '+t.slice(0,200));
+      }
+      var d=await r.json();
+      totalRows+=(d.total_inserted||0);
+      bar.style.width=Math.min(95,5+pass*5)+'%';
+      // Show per-store progress
+      if(d.stores_processed&&d.stores_processed.length){
+        var details=d.stores_processed.map(function(s){
+          return s.store_name+': '+s.rows_inserted.toLocaleString()+(s.done?' ✓':' →');
+        }).join(' · ');
+        st.innerHTML='⚡ Pass '+pass+' — '+details;
+      }
+      if(d.done){
+        bar.style.width='100%';
+        st.innerHTML='<b style="color:var(--gn)">✅ Sync complete! '+totalRows.toLocaleString()+' purchase rows inserted across '+pass+' passes.</b>';
+        if(d.customer_count!=null){
+          st.innerHTML+='<br><span style="font-size:11px;color:var(--t2)">'+d.customer_count.toLocaleString()+' customer profiles built</span>';
+        }
+        break;
+      }
+      // Brief pause between passes
+      await new Promise(function(r){setTimeout(r,500)});
+    }
+    if(pass>=maxPasses){
+      st.innerHTML='⚠️ Hit max passes — sync may not be fully complete. Click again to continue.';
+    }
+    refreshSyncStats();
+  }catch(e){
+    st.innerHTML='❌ '+e.message;
+  }finally{
+    btn.disabled=false;btn.textContent='⚡ Sync SQL Server → Neon';
+    setTimeout(function(){prog.style.display='none';bar.style.width='0%'},3000);
+  }
+}
+
+if(document.getElementById('syncSalesBtn')){
+  document.getElementById('syncSalesBtn').onclick=function(){runSyncSales(false)};
+  document.getElementById('syncSalesResetBtn').onclick=function(){
+    if(confirm('This will restart the sync from the beginning. Existing data is kept (deduped by ticket+style+phone). Continue?')){
+      runSyncSales(true);
+    }
+  };
+  // Refresh stats on page load (admin only)
+  if(IS_ADMIN){setTimeout(refreshSyncStats,1500)}
+}
 
 
 const LR={"222": ["Puebla", "Puebla"], "223": ["Puebla", "Puebla"], "224": ["Puebla", "Puebla"], "225": ["Xalapa", "Veracruz"], "226": ["Xalapa", "Veracruz"], "227": ["Puebla", "Puebla"], "228": ["Xalapa", "Veracruz"], "229": ["Xalapa", "Veracruz"], "231": ["Puebla", "Puebla"], "232": ["Xalapa", "Veracruz"], "233": ["Puebla", "Puebla"], "235": ["Xalapa", "Veracruz"], "236": ["Puebla", "Puebla"], "237": ["Puebla", "Puebla"], "238": ["Puebla", "Puebla"], "241": ["Tlaxcala", "Tlaxcala"], "243": ["Puebla", "Puebla"], "244": ["Puebla", "Puebla"], "245": ["Puebla", "Puebla"], "246": ["Tlaxcala", "Tlaxcala"], "247": ["Tlaxcala", "Tlaxcala"], "248": ["Puebla", "Puebla"], "249": ["Puebla", "Puebla"], "271": ["Xalapa", "Veracruz"], "272": ["Xalapa", "Veracruz"], "273": ["Xalapa", "Veracruz"], "274": ["Oaxaca de Ju�rez", "Oaxaca"], "275": ["Puebla", "Puebla"], "276": ["Puebla", "Puebla"], "278": ["Xalapa", "Veracruz"], "279": ["Xalapa", "Veracruz"], "281": ["Oaxaca de Ju�rez", "Oaxaca"], "282": ["Xalapa", "Veracruz"], "283": ["Xalapa", "Veracruz"], "284": ["Xalapa", "Veracruz"], "285": ["Xalapa", "Veracruz"], "287": ["Oaxaca de Ju�rez", "Oaxaca"], "288": ["Xalapa", "Veracruz"], "294": ["Xalapa", "Veracruz"], "296": ["Xalapa", "Veracruz"], "297": ["Xalapa", "Veracruz"], "311": ["Tepic", "Nayarit"], "312": ["Colima", "Colima"], "313": ["Colima", "Colima"], "314": ["Colima", "Colima"], "315": ["Guadalajara", "Jalisco"], "316": ["Guadalajara", "Jalisco"], "317": ["Guadalajara", "Jalisco"], "319": ["Tepic", "Nayarit"], "321": ["Guadalajara", "Jalisco"], "322": ["Guadalajara", "Jalisco"], "323": ["Tepic", "Nayarit"], "324": ["Tepic", "Nayarit"], "325": ["Tepic", "Nayarit"], "326": ["Guadalajara", "Jalisco"], "327": ["Tepic", "Nayarit"], "328": ["Morelia", "Michoacn"], "329": ["Tepic", "Nayarit"], "33": ["Guadalajara", "Jalisco"], "341": ["Guadalajara", "Jalisco"], "342": ["Guadalajara", "Jalisco"], "343": ["Guadalajara", "Jalisco"], "344": ["Guadalajara", "Jalisco"], "345": ["Guadalajara", "Jalisco"], "346": ["Zacatecas", "Zacatecas"], "347": ["Guadalajara", "Jalisco"], "348": ["Guadalajara", "Jalisco"], "349": ["Guadalajara", "Jalisco"], "351": ["Morelia", "Michoacn"], "352": ["Morelia", "Michoacn"], "353": ["Morelia", "Michoacn"], "354": ["Morelia", "Michoacn"], "355": ["Morelia", "Michoacn"], "356": ["Morelia", "Michoacn"], "357": ["Guadalajara", "Jalisco"], "358": ["Guadalajara", "Jalisco"], "359": ["Morelia", "Michoacn"], "371": ["Guadalajara", "Jalisco"], "372": ["Guadalajara", "Jalisco"], "373": ["Guadalajara", "Jalisco"], "374": ["Guadalajara", "Jalisco"], "375": ["Guadalajara", "Jalisco"], "376": ["Guadalajara", "Jalisco"], "377": ["Guadalajara", "Jalisco"], "378": ["Guadalajara", "Jalisco"], "381": ["Morelia", "Michoacn"], "382": ["Guadalajara", "Jalisco"], "383": ["Morelia", "Michoacn"], "384": ["Guadalajara", "Jalisco"], "385": ["Guadalajara", "Jalisco"], "386": ["Guadalajara", "Jalisco"], "387": ["Guadalajara", "Jalisco"], "388": ["Guadalajara", "Jalisco"], "389": ["Tepic", "Nayarit"], "391": ["Guadalajara", "Jalisco"], "392": ["Guadalajara", "Jalisco"], "393": ["Guadalajara", "Jalisco"], "394": ["Morelia", "Michoacn"], "395": ["Guadalajara", "Jalisco"], "411": ["Guanajuato", "Guanajuato"], "412": ["Guanajuato", "Guanajuato"], "413": ["Guanajuato", "Guanajuato"], "414": ["Santiago de Queretaror", "Querétaro"], "415": ["Guanajuato", "Guanajuato"], "417": ["Guanajuato", "Guanajuato"], "418": ["Guanajuato", "Guanajuato"], "419": ["Guanajuato", "Guanajuato"], "421": ["Guanajuato", "Guanajuato"], "422": ["Morelia", "Michoacn"], "423": ["Morelia", "Michoacn"], "424": ["Morelia", "Michoacn"], "425": ["Morelia", "Michoacn"], "426": ["Morelia", "Michoacn"], "427": ["Santiago de Queretaror", "Querétaro"], "428": ["Guanajuato", "Guanajuato"], "429": ["Guanajuato", "Guanajuato"], "431": ["Guadalajara", "Jalisco"], "432": ["Guanajuato", "Guanajuato"], "433": ["Zacatecas", "Zacatecas"], "434": ["Morelia", "Michoacn"], "435": ["Morelia", "Michoacn"], "436": ["Morelia", "Michoacn"], "437": ["Guadalajara", "Jalisco"], "438": ["Morelia", "Michoacn"], "441": ["Santiago de Queretaror", "Querétaro"], "442": ["Santiago de Queretaror", "Querétaro"], "443": ["Morelia", "Michoacn"], "444": ["San Luis Potos", "San Luis Potos"], "445": ["Guanajuato", "Guanajuato"], "447": ["Morelia", "Michoacn"], "448": ["Santiago de Queretaror", "Querétaro"], "449": ["Aguascalientes", "Aguascalientes"], "451": ["Morelia", "Michoacn"], "452": ["Morelia", "Michoacn"], "453": ["Morelia", "Michoacn"], "454": ["Morelia", "Michoacn"], "455": ["Morelia", "Michoacn"], "456": ["Guanajuato", "Guanajuato"], "457": ["Zacatecas", "Zacatecas"], "458": ["Zacatecas", "Zacatecas"], "459": ["Morelia", "Michoacn"], "461": ["Guanajuato", "Guanajuato"], "462": ["Guanajuato", "Guanajuato"], "463": ["Zacatecas", "Zacatecas"], "464": ["Guanajuato", "Guanajuato"], "465": ["Aguascalientes", "Aguascalientes"], "466": ["Guanajuato", "Guanajuato"], "467": ["Zacatecas", "Zacatecas"], "468": ["Guanajuato", "Guanajuato"], "469": ["Guanajuato", "Guanajuato"], "471": ["Morelia", "Michoacn"], "472": ["Guanajuato", "Guanajuato"], "473": ["Guanajuato", "Guanajuato"], "474": ["Guadalajara", "Jalisco"], "475": ["Guadalajara", "Jalisco"], "476": ["Guanajuato", "Guanajuato"], "477": ["Guanajuato", "Guanajuato"], "478": ["Zacatecas", "Zacatecas"], "481": ["San Luis Potos", "San Luis Potos"], "482": ["San Luis Potos", "San Luis Potos"], "483": ["San Luis Potos", "San Luis Potos"], "485": ["San Luis Potos", "San Luis Potos"], "486": ["San Luis Potos", "San Luis Potos"], "487": ["San Luis Potos", "San Luis Potos"], "488": ["San Luis Potos", "San Luis Potos"], "489": ["San Luis Potos", "San Luis Potos"], "492": ["Zacatecas", "Zacatecas"], "493": ["Zacatecas", "Zacatecas"], "494": ["Zacatecas", "Zacatecas"], "495": ["Aguascalientes", "Aguascalientes"], "496": ["Zacatecas", "Zacatecas"], "498": ["Zacatecas", "Zacatecas"], "499": ["Zacatecas", "Zacatecas"], "55": ["Toluca de Lerdo", "Estado de México"], "588": ["Toluca de Lerdo", "Estado de México"], "591": ["Toluca de Lerdo", "Estado de México"], "592": ["Toluca de Lerdo", "Estado de México"], "593": ["Toluca de Lerdo", "Estado de México"], "594": ["Toluca de Lerdo", "Estado de México"], "595": ["Toluca de Lerdo", "Estado de México"], "596": ["Toluca de Lerdo", "Estado de México"], "597": ["Toluca de Lerdo", "Estado de México"], "599": ["Toluca de Lerdo", "Estado de México"], "612": ["La Paz", "Baja California Sur"], "613": ["La Paz", "Baja California Sur"], "614": ["Chihuahua", "Chihuahua"], "615": ["La Paz", "Baja California Sur"], "616": ["Mexicali", "Baja California"], "618": ["Durango", "Durango"], "621": ["Chihuahua", "Chihuahua"], "622": ["Hermosillo", "Sonora"], "623": ["Hermosillo", "Sonora"], "624": ["La Paz", "Baja California Sur"], "625": ["Chihuahua", "Chihuahua"], "626": ["Chihuahua", "Chihuahua"], "627": ["Chihuahua", "Chihuahua"], "628": ["Chihuahua", "Chihuahua"], "629": ["Chihuahua", "Chihuahua"], "631": ["Hermosillo", "Sonora"], "632": ["Hermosillo", "Sonora"], "633": ["Hermosillo", "Sonora"], "634": ["Hermosillo", "Sonora"], "635": ["Chihuahua", "Chihuahua"], "636": ["Chihuahua", "Chihuahua"], "637": ["Hermosillo", "Sonora"], "638": ["Hermosillo", "Sonora"], "639": ["Chihuahua", "Chihuahua"], "641": ["Hermosillo", "Sonora"], "642": ["Hermosillo", "Sonora"], "643": ["Hermosillo", "Sonora"], "644": ["Hermosillo", "Sonora"], "645": ["Hermosillo", "Sonora"], "646": ["Mexicali", "Baja California"], "647": ["Hermosillo", "Sonora"], "648": ["Chihuahua", "Chihuahua"], "649": ["Chihuahua", "Chihuahua"], "651": ["Hermosillo", "Sonora"], "652": ["Chihuahua", "Chihuahua"], "653": ["Hermosillo", "Sonora"], "656": ["Chihuahua", "Chihuahua"], "658": ["Mexicali", "Baja California"], "659": ["Chihuahua", "Chihuahua"], "661": ["Mexicali", "Baja California"], "662": ["Hermosillo", "Sonora"], "664": ["Mexicali", "Baja California"], "665": ["Mexicali", "Baja California"], "667": ["Culiacan Rosales", "Sinaloa"], "668": ["Culiacan Rosales", "Sinaloa"], "669": ["Culiacan Rosales", "Sinaloa"], "671": ["Durango", "Durango"], "672": ["Culiacan Rosales", "Sinaloa"], "673": ["Culiacan Rosales", "Sinaloa"], "674": ["Durango", "Durango"], "675": ["Durango", "Durango"], "676": ["Durango", "Durango"], "677": ["Durango", "Durango"], "686": ["Mexicali", "Baja California"], "687": ["Culiacan Rosales", "Sinaloa"], "694": ["Culiacan Rosales", "Sinaloa"], "695": ["Culiacan Rosales", "Sinaloa"], "696": ["Culiacan Rosales", "Sinaloa"], "697": ["Culiacan Rosales", "Sinaloa"], "698": ["Culiacan Rosales", "Sinaloa"], "711": ["Toluca de Lerdo", "Estado de México"], "712": ["Toluca de Lerdo", "Estado de México"], "713": ["Toluca de Lerdo", "Estado de México"], "714": ["Toluca de Lerdo", "Estado de México"], "715": ["Morelia", "Michoacn"], "716": ["Toluca de Lerdo", "Estado de México"], "717": ["Toluca de Lerdo", "Estado de México"], "718": ["Toluca de Lerdo", "Estado de México"], "719": ["Toluca de Lerdo", "Estado de México"], "721": ["Toluca de Lerdo", "Estado de México"], "722": ["Toluca de Lerdo", "Estado de México"], "723": ["Toluca de Lerdo", "Estado de México"], "724": ["Toluca de Lerdo", "Estado de México"], "725": ["Toluca de Lerdo", "Estado de México"], "726": ["Toluca de Lerdo", "Estado de México"], "727": ["Chilpancingo de los Bravo", "Guerrero"], "728": ["Toluca de Lerdo", "Estado de México"], "731": ["Cuernavaca", "Morelos"], "732": ["Chilpancingo de los Bravo", "Guerrero"], "733": ["Chilpancingo de los Bravo", "Guerrero"], "734": ["Cuernavaca", "Morelos"], "735": ["Cuernavaca", "Morelos"], "736": ["Chilpancingo de los Bravo", "Guerrero"], "737": ["Cuernavaca", "Morelos"], "738": ["Pachuca de Soto", "Hidalgo"], "739": ["Cuernavaca", "Morelos"], "741": ["Chilpancingo de los Bravo", "Guerrero"], "742": ["Chilpancingo de los Bravo", "Guerrero"], "743": ["Pachuca de Soto", "Hidalgo"], "744": ["Chilpancingo de los Bravo", "Guerrero"], "745": ["Chilpancingo de los Bravo", "Guerrero"], "746": ["Xalapa", "Veracruz"], "747": ["Chilpancingo de los Bravo", "Guerrero"], "748": ["Pachuca de Soto", "Hidalgo"], "749": ["Tlaxcala", "Tlaxcala"], "751": ["Cuernavaca", "Morelos"], "753": ["Morelia", "Michoacn"], "754": ["Chilpancingo de los Bravo", "Guerrero"], "755": ["Chilpancingo de los Bravo", "Guerrero"], "756": ["Chilpancingo de los Bravo", "Guerrero"], "757": ["Chilpancingo de los Bravo", "Guerrero"], "758": ["Chilpancingo de los Bravo", "Guerrero"], "759": ["Pachuca de Soto", "Hidalgo"], "761": ["Pachuca de Soto", "Hidalgo"], "762": ["Chilpancingo de los Bravo", "Guerrero"], "763": ["Pachuca de Soto", "Hidalgo"], "764": ["Puebla", "Puebla"], "765": ["Xalapa", "Veracruz"], "766": ["Xalapa", "Veracruz"], "767": ["Chilpancingo de los Bravo", "Guerrero"], "768": ["Xalapa", "Veracruz"], "769": ["Cuernavaca", "Morelos"], "771": ["Pachuca de Soto", "Hidalgo"], "772": ["Pachuca de Soto", "Hidalgo"], "773": ["Pachuca de Soto", "Hidalgo"], "774": ["Pachuca de Soto", "Hidalgo"], "775": ["Pachuca de Soto", "Hidalgo"], "776": ["Puebla", "Puebla"], "777": ["Cuernavaca", "Morelos"], "778": ["Pachuca de Soto", "Hidalgo"], "779": ["Pachuca de Soto", "Hidalgo"], "781": ["Chilpancingo de los Bravo", "Guerrero"], "782": ["Xalapa", "Veracruz"], "783": ["Xalapa", "Veracruz"], "784": ["Xalapa", "Veracruz"], "785": ["Xalapa", "Veracruz"], "786": ["Morelia", "Michoacn"], "789": ["Xalapa", "Veracruz"], "791": ["Pachuca de Soto", "Hidalgo"], "797": ["Puebla", "Puebla"], "81": ["Monterrey", "Nuevo León"], "821": ["Monterrey", "Nuevo León"], "823": ["Monterrey", "Nuevo León"], "824": ["Monterrey", "Nuevo León"], "825": ["Monterrey", "Nuevo León"], "826": ["Monterrey", "Nuevo León"], "828": ["Monterrey", "Nuevo León"], "829": ["Monterrey", "Nuevo León"], "831": ["Ciudad Victoria", "Tamaulipas"], "832": ["Ciudad Victoria", "Tamaulipas"], "833": ["Xalapa", "Veracruz"], "834": ["Ciudad Victoria", "Tamaulipas"], "835": ["Ciudad Victoria", "Tamaulipas"], "836": ["Ciudad Victoria", "Tamaulipas"], "841": ["Ciudad Victoria", "Tamaulipas"], "842": ["Zacatecas", "Zacatecas"], "844": ["Saltillo", "Coahuila"], "845": ["San Luis Potos", "San Luis Potosí"], "846": ["Xalapa", "Veracruz"], "861": ["Saltillo", "Coahuila"], "862": ["Saltillo", "Coahuila"], "864": ["Saltillo", "Coahuila"], "866": ["Saltillo", "Coahuila"], "867": ["Monterrey", "Nuevo León"], "868": ["Ciudad Victoria", "Tamaulipas"], "869": ["Saltillo", "Coahuila"], "871": ["Durango", "Durango"], "872": ["Saltillo", "Coahuila"], "873": ["Monterrey", "Nuevo León"], "877": ["Saltillo", "Coahuila"], "878": ["Saltillo", "Coahuila"], "891": ["Ciudad Victoria", "Tamaulipas"], "892": ["Monterrey", "Nuevo León"], "894": ["Ciudad Victoria", "Tamaulipas"], "897": ["Ciudad Victoria", "Tamaulipas"], "899": ["Ciudad Victoria", "Tamaulipas"], "913": ["Villahermosa", "Tabasco"], "914": ["Villahermosa", "Tabasco"], "916": ["Tuxtla Guti�rrez", "Chiapas"], "917": ["Villahermosa", "Tabasco"], "918": ["Tuxtla Guti�rrez", "Chiapas"], "919": ["Tuxtla Guti�rrez", "Chiapas"], "921": ["Xalapa", "Veracruz"], "922": ["Xalapa", "Veracruz"], "923": ["Xalapa", "Veracruz"], "924": ["Xalapa", "Veracruz"], "932": ["Villahermosa", "Tabasco"], "933": ["Villahermosa", "Tabasco"], "934": ["Villahermosa", "Tabasco"], "936": ["Villahermosa", "Tabasco"], "937": ["Villahermosa", "Tabasco"], "938": ["San Francisco de Campeche", "Campeche"], "951": ["Oaxaca de Ju�rez", "Oaxaca"], "953": ["Oaxaca de Ju�rez", "Oaxaca"], "954": ["Oaxaca de Ju�rez", "Oaxaca"], "958": ["Oaxaca de Ju�rez", "Oaxaca"], "961": ["Tuxtla Guti�rrez", "Chiapas"], "962": ["Tuxtla Guti�rrez", "Chiapas"], "963": ["Tuxtla Guti�rrez", "Chiapas"], "964": ["Tuxtla Guti�rrez", "Chiapas"], "965": ["Tuxtla Guti�rrez", "Chiapas"], "966": ["Tuxtla Guti�rrez", "Chiapas"], "967": ["Tuxtla Guti�rrez", "Chiapas"], "968": ["Tuxtla Guti�rrez", "Chiapas"], "969": ["Merida", "Yucatan"], "971": ["Oaxaca de Ju�rez", "Oaxaca"], "972": ["Oaxaca de Ju�rez", "Oaxaca"], "981": ["San Francisco de Campeche", "Campeche"], "982": ["San Francisco de Campeche", "Campeche"], "983": ["Chetumal", "Quintana Roo"], "984": ["Chetumal", "Quintana Roo"], "985": ["Merida", "Yucatan"], "986": ["Merida", "Yucatan"], "987": ["Chetumal", "Quintana Roo"], "988": ["Merida", "Yucatan"], "991": ["Merida", "Yucatan"], "992": ["Tuxtla Guti�rrez", "Chiapas"], "993": ["Villahermosa", "Tabasco"], "994": ["Oaxaca de Ju�rez", "Oaxaca"], "995": ["Oaxaca de Ju�rez", "Oaxaca"], "996": ["San Francisco de Campeche", "Campeche"], "997": ["Merida", "Yucatan"], "998": ["Chetumal", "Quintana Roo"], "999": ["Merida", "Yucatan"]};
@@ -489,7 +631,8 @@ if(loadState()&&Object.keys(rp).length>0){rnMUI()}else{
       document.getElementById('upSec').style.display='flex';
       var st=document.getElementById('syncSt');
       st.innerHTML='📡 Loading...';
-      var r=await fetch(API_BASE+'/data');
+      var d2=parseInt((document.getElementById('daysSel')||{}).value)||7;
+      var r=await fetch(API_BASE+'/data?days='+d2);
       var data=await r.json();
       if(data.status==='ok'&&data.contactsCSV&&data.contactCount>0){
         function fullParseCSV(txt){var results=[],row=[],field='',inQ=false;for(var i=0;i<txt.length;i++){var c=txt[i];if(c==='"'){if(inQ&&txt[i+1]==='"'){field+='"';i++}else{inQ=!inQ}}else if(c===','&&!inQ){row.push(field);field=''}else if((c==='\n'||(c==='\r'&&txt[i+1]==='\n'))&&!inQ){if(c==='\r')i++;row.push(field);results.push(row);row=[];field=''}else{field+=c}}if(field||row.length)row.push(field);if(row.length)results.push(row);return results}
