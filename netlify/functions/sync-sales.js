@@ -21,7 +21,7 @@
 const {
   db, preflight, ok, badRequest, serverError, parseBody, requireAuth,
   CORS_HEADERS, normalizePhone, beachCityInfo, normalizeCityName,
-  categoryFromCode, vendedorToAgent, STORE_INFO,
+  categoryFromCode, vendedorToAgent, classifySalesChannel, STORE_INFO,
 } = require('./_shared');
 
 // SQL Server proxy config (read from env, fall back to known values)
@@ -49,6 +49,7 @@ async function ensureSchema() {
     store_code TEXT,
     vendedor TEXT,
     agent_name TEXT,
+    sales_channel TEXT,                -- 'agent_online' or 'walkin'
     ticket_id TEXT,
     product_code TEXT,
     product_name TEXT,
@@ -63,8 +64,11 @@ async function ensureSchema() {
     imported_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(store_code, ticket_id, product_code, phone)
   )`;
+  // For older databases, ensure column exists
+  await sql`ALTER TABLE customer_purchases ADD COLUMN IF NOT EXISTS sales_channel TEXT`;
   await sql`CREATE INDEX IF NOT EXISTS idx_purchases_phone ON customer_purchases(phone)`;
   await sql`CREATE INDEX IF NOT EXISTS idx_purchases_date  ON customer_purchases(purchase_date DESC)`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_purchases_channel ON customer_purchases(sales_channel)`;
 
   await sql`CREATE TABLE IF NOT EXISTS customers (
     phone TEXT PRIMARY KEY,
@@ -76,6 +80,12 @@ async function ensureSchema() {
     -- aggregate purchase stats
     total_orders INTEGER DEFAULT 0,
     total_lifetime_mxn NUMERIC(14,2) DEFAULT 0,
+    -- channel breakdown
+    total_online_orders INTEGER DEFAULT 0,
+    total_online_mxn NUMERIC(14,2) DEFAULT 0,
+    total_walkin_orders INTEGER DEFAULT 0,
+    total_walkin_mxn NUMERIC(14,2) DEFAULT 0,
+    -- date stats
     first_purchase_date DATE,
     last_purchase_date DATE,
     days_since_last_purchase INTEGER,
@@ -93,6 +103,11 @@ async function ensureSchema() {
     last_synced_at TIMESTAMPTZ DEFAULT NOW(),
     created_at TIMESTAMPTZ DEFAULT NOW()
   )`;
+  // Backfill columns for older databases
+  await sql`ALTER TABLE customers ADD COLUMN IF NOT EXISTS total_online_orders INTEGER DEFAULT 0`;
+  await sql`ALTER TABLE customers ADD COLUMN IF NOT EXISTS total_online_mxn NUMERIC(14,2) DEFAULT 0`;
+  await sql`ALTER TABLE customers ADD COLUMN IF NOT EXISTS total_walkin_orders INTEGER DEFAULT 0`;
+  await sql`ALTER TABLE customers ADD COLUMN IF NOT EXISTS total_walkin_mxn NUMERIC(14,2) DEFAULT 0`;
   await sql`CREATE INDEX IF NOT EXISTS idx_customers_lapsed ON customers(is_lapsed) WHERE is_lapsed = TRUE`;
   await sql`CREATE INDEX IF NOT EXISTS idx_customers_tier ON customers(buyer_tier)`;
   await sql`CREATE INDEX IF NOT EXISTS idx_customers_beach ON customers(is_beach_city) WHERE is_beach_city = TRUE`;
@@ -147,17 +162,18 @@ async function fetchStorePage(storeCode, sinceTicketId, limit) {
   const since = parseInt(sinceTicketId || '0', 10) || 0;
   const lim = Math.max(100, Math.min(10000, limit || PAGE_SIZE));
 
-  // Per-store filters (locked by Jessie):
-  //   Cercu  (TS0002): Movimiento='TK' AND Vendedor IN ('YAZMIN','YOANA') — Jazmin + Yoana sales only
-  //   Leona  (TS0001): Vendedor='E-COMMERCE' AND CustCliente <> ''        — Nancy's online sales only
-  //   Other stores: not synced for now
+  // Sync ALL purchases with phone numbers, no vendedor filter.
+  // Channel attribution (online vs walk-in) is computed at write-time
+  // from the vendedor + date via classifySalesChannel().
+  //
+  // Cercu  (TS0002): only TK movements (real sales, not returns)
+  // Leona  (TS0001): require CustCliente non-empty (skip system rows)
   let storeFilter;
   if (storeCode === 'TS0001') {
-    storeFilter = `Vendedor = 'E-COMMERCE' AND CustCliente IS NOT NULL AND CustCliente <> ''`;
+    storeFilter = `CustCliente IS NOT NULL AND CustCliente <> ''`;
   } else if (storeCode === 'TS0002') {
-    storeFilter = `Movimiento = 'TK' AND Vendedor IN ('YAZMIN','YOANA')`;
+    storeFilter = `Movimiento = 'TK'`;
   } else {
-    // Other stores not currently synced — return empty
     return [];
   }
 
@@ -207,6 +223,8 @@ function transformRow(raw, storeCode) {
 
   const vendedor = (raw.vendedor || raw.Vendedor || '').trim();
   const agent = vendedorToAgent(vendedor);
+  const purchaseDate = raw.purchase_date || raw.Fecha || null;
+  const salesChannel = classifySalesChannel(vendedor, purchaseDate);
   const qty = parseFloat(raw.qty || raw.Cantidad || 0) || 0;
   const unit = parseFloat(raw.unit_price || raw.Precio_Venta || 0) || 0;
 
@@ -217,10 +235,11 @@ function transformRow(raw, storeCode) {
 
   return {
     phone,
-    purchase_date: raw.purchase_date || raw.Fecha || null,
+    purchase_date: purchaseDate,
     store_code: storeCode,
     vendedor,
     agent_name: agent,
+    sales_channel: salesChannel,
     ticket_id: String(raw.ticket_id || raw.NO_REFEREN || ''),
     product_code: productCode,
     product_name: productName,
@@ -250,6 +269,7 @@ async function insertPurchases(rows) {
     const stores = slice.map(r => r.store_code);
     const vends = slice.map(r => r.vendedor);
     const agents = slice.map(r => r.agent_name);
+    const channels = slice.map(r => r.sales_channel);
     const tickets = slice.map(r => r.ticket_id);
     const codes = slice.map(r => r.product_code);
     const names = slice.map(r => r.product_name);
@@ -264,8 +284,8 @@ async function insertPurchases(rows) {
 
     const result = await sql`
       INSERT INTO customer_purchases (
-        phone, purchase_date, store_code, vendedor, agent_name, ticket_id,
-        product_code, product_name, category, qty, unit_price, line_total,
+        phone, purchase_date, store_code, vendedor, agent_name, sales_channel,
+        ticket_id, product_code, product_name, category, qty, unit_price, line_total,
         payment_method, lead_source, raw_customer_name, raw_city
       )
       SELECT * FROM UNNEST(
@@ -274,6 +294,7 @@ async function insertPurchases(rows) {
         ${stores}::text[],
         ${vends}::text[],
         ${agents}::text[],
+        ${channels}::text[],
         ${tickets}::text[],
         ${codes}::text[],
         ${names}::text[],
@@ -307,6 +328,8 @@ async function recomputeCustomers() {
   await sql`
     INSERT INTO customers (
       phone, name, city, total_orders, total_lifetime_mxn,
+      total_online_orders, total_online_mxn,
+      total_walkin_orders, total_walkin_mxn,
       first_purchase_date, last_purchase_date, days_since_last_purchase,
       favorite_category, favorite_product, favorite_store,
       favorite_vendedor, favorite_agent, favorite_payment, top_lead_source,
@@ -319,6 +342,10 @@ async function recomputeCustomers() {
         MAX(raw_city) AS city,
         COUNT(DISTINCT ticket_id) AS total_orders,
         SUM(line_total) AS total_lifetime_mxn,
+        COUNT(DISTINCT CASE WHEN sales_channel = 'agent_online' THEN ticket_id END) AS online_orders,
+        SUM(CASE WHEN sales_channel = 'agent_online' THEN line_total ELSE 0 END) AS online_mxn,
+        COUNT(DISTINCT CASE WHEN sales_channel = 'walkin' THEN ticket_id END) AS walkin_orders,
+        SUM(CASE WHEN sales_channel = 'walkin' THEN line_total ELSE 0 END) AS walkin_mxn,
         MIN(purchase_date) AS first_purchase_date,
         MAX(purchase_date) AS last_purchase_date
       FROM customer_purchases
@@ -350,6 +377,7 @@ async function recomputeCustomers() {
       SELECT DISTINCT ON (phone) phone, vendedor, agent_name
       FROM customer_purchases
       WHERE vendedor IS NOT NULL AND vendedor <> ''
+        AND sales_channel = 'agent_online'   -- only count online agent for "favorite agent"
       GROUP BY phone, vendedor, agent_name
       ORDER BY phone, COUNT(*) DESC
     ),
@@ -373,6 +401,10 @@ async function recomputeCustomers() {
       b.city,
       b.total_orders,
       b.total_lifetime_mxn,
+      b.online_orders,
+      b.online_mxn,
+      b.walkin_orders,
+      b.walkin_mxn,
       b.first_purchase_date,
       b.last_purchase_date,
       (CURRENT_DATE - b.last_purchase_date) AS days_since_last_purchase,
@@ -402,6 +434,10 @@ async function recomputeCustomers() {
       city = COALESCE(EXCLUDED.city, customers.city),
       total_orders = EXCLUDED.total_orders,
       total_lifetime_mxn = EXCLUDED.total_lifetime_mxn,
+      total_online_orders = EXCLUDED.total_online_orders,
+      total_online_mxn = EXCLUDED.total_online_mxn,
+      total_walkin_orders = EXCLUDED.total_walkin_orders,
+      total_walkin_mxn = EXCLUDED.total_walkin_mxn,
       first_purchase_date = EXCLUDED.first_purchase_date,
       last_purchase_date = EXCLUDED.last_purchase_date,
       days_since_last_purchase = EXCLUDED.days_since_last_purchase,
@@ -488,10 +524,13 @@ exports.handler = async (event) => {
       const states = await sql`SELECT * FROM sync_state ORDER BY sync_key`;
       const counts = await sql`SELECT
         (SELECT COUNT(*) FROM customer_purchases)::int AS purchases,
-        (SELECT COUNT(*) FROM customers)::int          AS customers,
+        (SELECT COUNT(*) FROM customer_purchases WHERE sales_channel = 'agent_online')::int AS online_purchases,
+        (SELECT COUNT(*) FROM customer_purchases WHERE sales_channel = 'walkin')::int AS walkin_purchases,
+        (SELECT COUNT(*) FROM customers)::int AS customers,
+        (SELECT COUNT(*) FROM customers WHERE total_online_orders > 0)::int AS online_customers,
         (SELECT COUNT(*) FROM customers WHERE is_beach_city = TRUE)::int AS beach_customers,
-        (SELECT COUNT(*) FROM customers WHERE buyer_tier = 'VIP')::int   AS vip_customers,
-        (SELECT COUNT(*) FROM customers WHERE is_lapsed = TRUE)::int     AS lapsed_customers
+        (SELECT COUNT(*) FROM customers WHERE buyer_tier = 'VIP')::int AS vip_customers,
+        (SELECT COUNT(*) FROM customers WHERE is_lapsed = TRUE)::int AS lapsed_customers
       `;
       return ok({ status: 'ok', states, totals: counts[0] });
     }

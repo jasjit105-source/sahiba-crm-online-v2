@@ -155,14 +155,65 @@ function mapAgent(email) {
 }
 
 // Map SQL Server vendedor → agent name (for cross-system unification)
+//
+// SAHIBA online sales channel:
+//   - YAZMIN              → Jazmin (Cercu, online only)
+//   - YOANA_ECOMMERCE     → Yoana (Cercu, NEW tag starting May 2026)
+//   - YOANA + has phone   → Yoana (Cercu, HISTORICAL — pre-cutoff only)
+//   - E-COMMERCE          → Nancy (Leona, current)
+//   - NANCY               → Nancy (Leona, historical pre-Jan 2026)
+//
+// Anyone else (MARIMAR, ELIZABETH, MILA, YULAY, PERLA, etc.) = walk-in / in-store sales
 const VENDEDOR_TO_AGENT = {
-  'YAZMIN':     'Jazmin',
-  'YOANA':      'Yoana',
-  'E-COMMERCE': 'Nancy',
+  'YAZMIN':           'Jazmin',
+  'YOANA':            'Yoana',
+  'YOANA_ECOMMERCE':  'Yoana',
+  'E-COMMERCE':       'Nancy',
+  'NANCY':            'Nancy',
 };
 function vendedorToAgent(v) {
   if (!v) return null;
   return VENDEDOR_TO_AGENT[String(v).trim().toUpperCase()] || null;
+}
+
+// Cutoff date — from this date forward, plain "YOANA" tag means walk-in
+// (even if customer has phone, because the phone is for delivery from in-store sale).
+// Before this date, "YOANA + phone" = online (best guess from historical proxy).
+const YOANA_NEW_TAG_CUTOFF = '2026-05-03';
+
+/**
+ * Determine the sales channel for a purchase row.
+ *
+ * Returns 'agent_online' or 'walkin'.
+ *
+ * Rules:
+ *   - YAZMIN, YOANA_ECOMMERCE, E-COMMERCE, NANCY → always 'agent_online'
+ *   - YOANA before cutoff → 'agent_online' (historical proxy: phone = online)
+ *   - YOANA after cutoff  → 'walkin' (use YOANA_ECOMMERCE for online)
+ *   - Any other vendedor  → 'walkin'
+ */
+function classifySalesChannel(vendedor, purchaseDate) {
+  if (!vendedor) return 'walkin';
+  const v = String(vendedor).trim().toUpperCase();
+
+  // Always-online vendedores
+  if (v === 'YAZMIN' || v === 'YOANA_ECOMMERCE' ||
+      v === 'E-COMMERCE' || v === 'NANCY') {
+    return 'agent_online';
+  }
+
+  // YOANA — special case: historical proxy
+  if (v === 'YOANA') {
+    // If we can't tell when it happened, default to walk-in (safer)
+    if (!purchaseDate) return 'walkin';
+    const dateStr = typeof purchaseDate === 'string'
+      ? purchaseDate.slice(0, 10)
+      : new Date(purchaseDate).toISOString().slice(0, 10);
+    return dateStr < YOANA_NEW_TAG_CUTOFF ? 'agent_online' : 'walkin';
+  }
+
+  // Everyone else (MARIMAR, ELIZABETH, MILA, YULAY, PERLA, etc.) = walk-in
+  return 'walkin';
 }
 
 // Store code → friendly name and vendedor table mapping
@@ -180,5 +231,6 @@ module.exports = {
   categoryFromCode, STYLE_CODE_MAP,
   beachCityInfo, normalizeCityName, BEACH_CITIES,
   vendedorToAgent, VENDEDOR_TO_AGENT,
+  classifySalesChannel, YOANA_NEW_TAG_CUTOFF,
   STORE_INFO,
 };

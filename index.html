@@ -514,8 +514,17 @@ async function refreshSyncStats(){
     if(!r.ok)return;
     var d=await r.json();
     if(d.totals){
-      document.getElementById('syStatCustomers').textContent=(d.totals.customers||0).toLocaleString();
-      document.getElementById('syStatPurchases').textContent=(d.totals.purchases||0).toLocaleString();
+      // Show online customer count as primary (these are reachable via WhatsApp).
+      // Total customers (including walk-in only) shown in tooltip.
+      var oc = d.totals.online_customers || 0;
+      var tc = d.totals.customers || 0;
+      document.getElementById('syStatCustomers').textContent = oc.toLocaleString();
+      document.getElementById('syStatCustomers').title = oc.toLocaleString() + ' online customers (' + tc.toLocaleString() + ' total incl. walk-in)';
+      // Show online purchases count (walkin not actionable for AI)
+      var op = d.totals.online_purchases || 0;
+      var tp = d.totals.purchases || 0;
+      document.getElementById('syStatPurchases').textContent = op.toLocaleString();
+      document.getElementById('syStatPurchases').title = op.toLocaleString() + ' online purchases (' + tp.toLocaleString() + ' total)';
       document.getElementById('syStatVip').textContent=(d.totals.vip_customers||0).toLocaleString();
       document.getElementById('syStatLapsed').textContent=(d.totals.lapsed_customers||0).toLocaleString();
       document.getElementById('syStatBeach').textContent=(d.totals.beach_customers||0).toLocaleString();
