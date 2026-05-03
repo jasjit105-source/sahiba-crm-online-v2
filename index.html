@@ -92,6 +92,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--bd);vertical-align:middl
 <div class="sync-progress" id="syncProg"><div class="bar" id="syncBar" style="width:0%"></div></div>
 </div>
 
+<div id="uploadSection">
 <div style="display:flex;align-items:center;gap:12px;color:var(--t3);font-size:11px;text-transform:uppercase;letter-spacing:1px"><div style="flex:1;height:1px;background:var(--bd)"></div>Upload New Data<div style="flex:1;height:1px;background:var(--bd)"></div></div>
 
 <div style="background:var(--s);border:1px solid var(--bd);border-radius:14px;padding:24px;box-shadow:var(--sh)">
@@ -123,6 +124,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--bd);vertical-align:middl
 <div class="sync-status" id="uploadSt" style="margin-top:10px"></div>
 </div>
 
+</div>
 </div>
 </div>
 <div id="mainUI" style="display:none">
@@ -179,16 +181,26 @@ if(IS_ADMIN){
     localStorage.setItem('sahiba_admin_pass','1993');
   }
 }else{
-  // Agent view: hide upload UI after page loads
+  // Agent view: hide upload UI completely + auto-load data
   setTimeout(function(){
     var hide=function(sel){var el=document.querySelector(sel);if(el)el.style.display='none'};
+    // Hide the entire upload section (header + card)
+    hide('#uploadSection');
+    // Also hide the individual elements just in case
     hide('#uploadBtn');hide('#dz');hide('#fIn');
     // Add a banner showing which agent
     var name=VIEW_MODE.charAt(0).toUpperCase()+VIEW_MODE.slice(1);
     document.title='Sahiba CRM — '+name;
     var ll=document.getElementById('ll');
     if(ll)ll.innerHTML='👤 '+name+' • '+ll.textContent;
-  },500);
+    // Default to a more useful window size
+    var sel=document.getElementById('daysSel');
+    if(sel)sel.value='7';
+    // Auto-trigger Load Data so agent doesn't have to click
+    var btn=document.querySelector('button[onclick*="loadFromDB"]')||document.getElementById('loadBtn');
+    if(btn&&btn.click)btn.click();
+    else if(typeof loadFromDB==='function')loadFromDB();
+  },300);
 }
 
 // Wrapper for fetch that adds auth on admin endpoints
