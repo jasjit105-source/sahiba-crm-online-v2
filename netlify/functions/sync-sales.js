@@ -147,37 +147,43 @@ async function fetchStorePage(storeCode, sinceTicketId, limit) {
   const since = parseInt(sinceTicketId || '0', 10) || 0;
   const lim = Math.max(100, Math.min(10000, limit || PAGE_SIZE));
 
+  // Per-store filters (locked by Jessie):
+  //   Cercu  (TS0002): Movimiento='TK' AND Vendedor IN ('YAZMIN','YOANA') — Jazmin + Yoana sales only
+  //   Leona  (TS0001): Vendedor='E-COMMERCE' AND CustCliente <> ''        — Nancy's online sales only
+  //   Other stores: not synced for now
+  let storeFilter;
+  if (storeCode === 'TS0001') {
+    storeFilter = `Vendedor = 'E-COMMERCE' AND CustCliente IS NOT NULL AND CustCliente <> ''`;
+  } else if (storeCode === 'TS0002') {
+    storeFilter = `Movimiento = 'TK' AND Vendedor IN ('YAZMIN','YOANA')`;
+  } else {
+    // Other stores not currently synced — return empty
+    return [];
+  }
+
   const q = `
     SELECT TOP ${lim}
       NO_REFEREN  AS ticket_id,
       Fecha       AS purchase_date,
       Vendedor    AS vendedor,
-      Style       AS product_code,
-      Producto    AS product_name,
+      Articulo    AS product_code,
+      Descripcion AS product_name,
+      Marca       AS product_brand,
       Cantidad    AS qty,
       Precio_Venta AS unit_price,
       PAGO2       AS payment_method,
       CustCliente AS customer_name,
       CustPhone   AS phone,
-      CustGuia    AS lead_source,
-      ${info.table}.CustCiudad AS city
+      CustGUIA    AS lead_source
     FROM ${info.table}
     WHERE CAST(NO_REFEREN AS BIGINT) > ${since}
+      AND CustPhone IS NOT NULL
+      AND CustPhone <> ''
+      AND ${storeFilter}
     ORDER BY CAST(NO_REFEREN AS BIGINT) ASC
   `.trim();
 
-  let rows;
-  try {
-    rows = await querySql(q);
-  } catch (e) {
-    // CustCiudad column might not exist — retry without it
-    if (/CustCiudad/i.test(e.message)) {
-      const q2 = q.replace(/,\s*\S+\.CustCiudad AS city/i, ', NULL AS city');
-      rows = await querySql(q2);
-    } else {
-      throw e;
-    }
-  }
+  const rows = await querySql(q);
   return rows;
 }
 
@@ -186,12 +192,28 @@ function transformRow(raw, storeCode) {
   const phone = normalizePhone(raw.phone || raw.CustPhone);
   if (!phone) return null;
 
-  const productCode = raw.product_code || raw.Style || '';
+  // Articulo column has style codes in formats like:
+  //   "2063VE-UNVA"      → strip dash suffix → "2063VE"
+  //   "24/9133VE-UNVA"   → strip prefix and suffix → "9133VE"
+  //   "8010BA"           → already clean
+  // Final stored code is the part after the last "/" and before the first "-".
+  const rawCode = (raw.product_code || raw.Articulo || '').trim();
+  let productCode = rawCode.split('-')[0];          // drop -UNVA suffix
+  if (productCode.includes('/')) {
+    productCode = productCode.split('/').pop();     // drop 24/ prefix
+  }
+  productCode = productCode.trim();
   const category = categoryFromCode(productCode);
+
   const vendedor = (raw.vendedor || raw.Vendedor || '').trim();
   const agent = vendedorToAgent(vendedor);
   const qty = parseFloat(raw.qty || raw.Cantidad || 0) || 0;
   const unit = parseFloat(raw.unit_price || raw.Precio_Venta || 0) || 0;
+
+  // Combine description + marca for richest product name
+  const desc = (raw.product_name || raw.Descripcion || '').trim();
+  const brand = (raw.product_brand || raw.Marca || '').trim();
+  const productName = desc || brand || '';
 
   return {
     phone,
@@ -201,15 +223,15 @@ function transformRow(raw, storeCode) {
     agent_name: agent,
     ticket_id: String(raw.ticket_id || raw.NO_REFEREN || ''),
     product_code: productCode,
-    product_name: raw.product_name || raw.Producto || '',
+    product_name: productName,
     category,
     qty,
     unit_price: unit,
     line_total: qty * unit,
     payment_method: (raw.payment_method || raw.PAGO2 || '').trim(),
-    lead_source: (raw.lead_source || raw.CustGuia || '').trim(),
+    lead_source: (raw.lead_source || raw.CustGUIA || '').trim(),
     raw_customer_name: (raw.customer_name || raw.CustCliente || '').trim(),
-    raw_city: (raw.city || '').trim(),
+    raw_city: '',
   };
 }
 
@@ -479,8 +501,11 @@ exports.handler = async (event) => {
     if (!auth.ok) return { statusCode: auth.status, headers: CORS_HEADERS, body: JSON.stringify({ error: auth.error }) };
 
     const body = parseBody(event);
+    // Only TS0001 (Leona = Nancy) and TS0002 (Cercu = Jazmin + Yoana) are tracked.
+    // Lecumberri and Chinconcuac are not synced — those stores don't have our agents.
+    const ALL_TRACKED_STORES = ['TS0001', 'TS0002'];
     const stores = body.store === 'all' || !body.store
-      ? Object.keys(STORE_INFO)
+      ? ALL_TRACKED_STORES
       : [body.store];
     const reset = body.reset === true; // optionally restart the cursor at 0
 
