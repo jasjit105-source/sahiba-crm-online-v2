@@ -605,14 +605,15 @@ exports.handler = async (event) => {
       }
     }
 
-    // Recompute customer summary if we inserted any rows
+    // Always recompute customer summary if we processed any stores,
+    // even if 0 new rows. The customers table is derived from purchases
+    // and may need refresh after backfills, classification fixes, etc.
     let customerCount = null;
-    if (totalInserted > 0 && !needsResume) {
+    if (!needsResume && storesProcessed.length > 0) {
       try {
         customerCount = await recomputeCustomers();
       } catch (e) {
         console.error('recomputeCustomers failed:', e);
-        // Don't fail the whole sync — purchases were saved successfully
       }
     }
 

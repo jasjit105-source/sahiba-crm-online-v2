@@ -206,7 +206,28 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--bd);vertical-align:middl
 <div class="pn" id="pYoanacl"><div class="tb"><input type="text" class="sb" id="ycSch" placeholder="Search Yoana call list..."><div class="tr"><button class="bs bgn" id="ycDl">⬇ Download Yoana List</button></div></div><div id="ycSummary"></div><div class="tw" id="ycTbl"></div><div class="rc" id="ycCnt"></div></div>
 <div class="pn" id="pMap"><div id="mapContent" style="background:var(--s);border:1px solid var(--bd);border-radius:var(--r);padding:20px;box-shadow:var(--sh)"><div id="mapChart" style="width:100%;height:500px"></div><div id="mapLegend" style="margin-top:14px"></div></div></div>
 <div class="pn" id="pUploadlog"><div class="tb"><div style="font-size:14px;color:var(--t1);font-weight:700">📜 Upload History</div><div class="tr"><button class="bs bsy" id="ulRf">🔄 Refresh</button></div></div><div id="ulContent" style="margin-top:14px"></div></div>
+<div class="pn" id="pCustomers">
+<div class="tb">
+<div style="display:flex;gap:6px;flex-wrap:wrap" id="custFilters">
+<button class="nv" data-cf="all">All<span class="ct" id="cfAll">—</span></button>
+<button class="nv" data-cf="vip">💎 VIPs<span class="ct" id="cfVip">—</span></button>
+<button class="nv" data-cf="lapsed">⏰ Lapsed<span class="ct" id="cfLapsed">—</span></button>
+<button class="nv" data-cf="online">🛒 Online<span class="ct" id="cfOnline">—</span></button>
+<button class="nv" data-cf="vestido">👗 Vestidos</button>
+<button class="nv" data-cf="blusa">👕 Blusas</button>
+<button class="nv" data-cf="bata">🥻 Batas</button>
 </div>
+<input type="text" class="sb" id="custSch" placeholder="Search name or phone..." style="margin-left:10px">
+<div class="tr"><button class="bs bsy" id="custRf">🔄 Refresh</button></div>
+</div>
+<div id="custStats" style="display:flex;gap:10px;margin:12px 0;flex-wrap:wrap"></div>
+<div class="tw" id="custTbl"></div>
+<div class="rc" id="custCnt"></div>
+</div>
+</div>
+</div>
+<div id="custPanel" style="display:none;position:fixed;top:0;right:0;width:480px;max-width:100%;height:100vh;background:#fff;box-shadow:-8px 0 32px rgba(0,0,0,0.15);z-index:1000;overflow-y:auto;border-left:1px solid var(--bd)">
+<div id="custPanelInner" style="padding:24px"></div>
 </div>
 <script>
 // ══════ CSV UPLOAD (primary) + API SYNC (optional) ══════
@@ -506,8 +527,268 @@ document.getElementById('rsBtn').onclick=function(){
 };
 
 // =====================================================================
-// SQL Server sync — admin-triggered, paginated, resumable
+// CUSTOMERS TAB — full purchase intelligence from SQL Server sync
 // =====================================================================
+var _custData = null;        // cached customer list
+var _custFilter = 'all';     // current filter
+var _custStats = null;       // cached stats
+
+async function loadCustomers(){
+  var w = document.getElementById('custTbl');
+  w.innerHTML = '<div style="padding:30px;text-align:center;color:var(--t2)">⏳ Loading customer intelligence...</div>';
+  try{
+    // Pull all customers from the DB. Use a dedicated endpoint so we can paginate later.
+    var r = await fetch(API_BASE+'/customers-list?limit=2000');
+    if(!r.ok){
+      w.innerHTML = '<div style="padding:30px;text-align:center;color:var(--rd)">❌ Failed to load (status '+r.status+'). Run SQL sync first.</div>';
+      return;
+    }
+    var d = await r.json();
+    _custData = d.customers || [];
+    _custStats = d.stats || {};
+    renderCustomerStats();
+    renderCustomerTable();
+  }catch(e){
+    w.innerHTML = '<div style="padding:30px;text-align:center;color:var(--rd)">❌ '+e.message+'</div>';
+  }
+}
+
+function renderCustomerStats(){
+  if(!_custStats)return;
+  var s = _custStats;
+  // Update filter pill counts
+  document.getElementById('cfAll').textContent = (s.total||0).toLocaleString();
+  document.getElementById('cfVip').textContent = (s.vip||0).toLocaleString();
+  document.getElementById('cfLapsed').textContent = (s.lapsed||0).toLocaleString();
+  document.getElementById('cfOnline').textContent = (s.online||0).toLocaleString();
+
+  // Render top stat cards
+  var st = document.getElementById('custStats');
+  function tile(label, val, color){
+    return '<div style="flex:1;min-width:130px;padding:12px;background:'+color+';border-radius:10px;text-align:center">'+
+           '<div style="font-size:22px;font-weight:800;color:#1e293b">'+val+'</div>'+
+           '<div style="font-size:11px;color:var(--t2);font-weight:600">'+label+'</div></div>';
+  }
+  var avg = s.avg_lifetime ? '$'+Math.round(s.avg_lifetime).toLocaleString() : '—';
+  var top = s.top_spender ? '$'+Math.round(s.top_spender).toLocaleString() : '—';
+  st.innerHTML =
+    tile('Total Customers', (s.total||0).toLocaleString(), '#f1f5f9') +
+    tile('💎 VIPs', (s.vip||0).toLocaleString(), '#fef3c7') +
+    tile('⏰ Lapsed', (s.lapsed||0).toLocaleString(), '#fee2e2') +
+    tile('Avg Lifetime', avg, '#dcfce7') +
+    tile('Top Spender', top, '#e0e7ff');
+}
+
+function renderCustomerTable(){
+  var w = document.getElementById('custTbl');
+  var q = (document.getElementById('custSch').value||'').toLowerCase().trim();
+  if(!_custData || _custData.length===0){
+    w.innerHTML = '<div style="padding:30px;text-align:center;color:var(--t2)">No customer data yet. Run "⚡ Sync SQL Server → Neon" first.</div>';
+    return;
+  }
+  // Apply filter
+  var rows = _custData.filter(function(c){
+    if(_custFilter==='vip' && c.buyer_tier!=='VIP') return false;
+    if(_custFilter==='lapsed' && !c.is_lapsed) return false;
+    if(_custFilter==='online' && !(c.total_online_orders>0)) return false;
+    if(_custFilter==='vestido' && c.favorite_category!=='Vestido') return false;
+    if(_custFilter==='blusa' && c.favorite_category!=='Blusa') return false;
+    if(_custFilter==='bata' && c.favorite_category!=='Bata') return false;
+    if(q){
+      var hay = ((c.name||'')+' '+(c.phone||'')+' '+(c.city||'')).toLowerCase();
+      if(hay.indexOf(q)<0) return false;
+    }
+    return true;
+  });
+
+  // Sort by lifetime spend descending (most valuable first)
+  rows.sort(function(a,b){ return (b.total_lifetime_mxn||0) - (a.total_lifetime_mxn||0); });
+
+  document.getElementById('custCnt').textContent = rows.length.toLocaleString() + ' customers';
+
+  if(rows.length===0){
+    w.innerHTML = '<div style="padding:30px;text-align:center;color:var(--t2)">No customers match this filter.</div>';
+    return;
+  }
+
+  // Build table
+  var html = '<table><thead><tr>'+
+    '<th>Customer</th>'+
+    '<th>Phone</th>'+
+    '<th>Tier</th>'+
+    '<th>Orders</th>'+
+    '<th style="text-align:right">Lifetime $</th>'+
+    '<th>Favorite</th>'+
+    '<th>Agent</th>'+
+    '<th>Last Buy</th>'+
+    '<th>Status</th>'+
+    '<th></th>'+
+    '</tr></thead><tbody>';
+
+  rows.slice(0,500).forEach(function(c){
+    var name = c.name || '<span style="color:var(--t3)">—</span>';
+    var tierBadge = '';
+    if(c.buyer_tier==='VIP') tierBadge = '<span style="background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#fff;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:700">💎 VIP</span>';
+    else if(c.buyer_tier==='Regular') tierBadge = '<span style="background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:600">Regular</span>';
+    else tierBadge = '<span style="background:#f3f4f6;color:#6b7280;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:600">Casual</span>';
+
+    var cat = c.favorite_category ? '<span style="background:#f3e8ff;color:#6b21a8;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:600">'+c.favorite_category+'</span>' : '<span style="color:var(--t3)">—</span>';
+    var ag = c.favorite_agent ? '<span class="bd ba">'+c.favorite_agent+'</span>' : '<span style="color:var(--t3)">—</span>';
+    var lapsedBadge = c.is_lapsed
+      ? '<span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:600">⏰ '+c.days_since_last_purchase+'d</span>'
+      : '<span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:600">✓ Active</span>';
+    var lastBuy = c.last_purchase_date ? new Date(c.last_purchase_date).toLocaleDateString('es-MX',{month:'short',day:'numeric',year:'2-digit'}) : '—';
+    var spend = c.total_lifetime_mxn ? '$'+Math.round(c.total_lifetime_mxn).toLocaleString() : '$0';
+    // WhatsApp link from phone — Mexico phones need 52 prefix
+    var waPh = c.phone ? '52'+c.phone : '';
+    var waBtn = waPh ? '<a href="https://wa.me/'+waPh+'" target="_blank" style="background:#25d366;color:#fff;padding:3px 10px;border-radius:5px;font-size:10px;font-weight:700;text-decoration:none">💬</a>' : '';
+
+    html += '<tr style="cursor:pointer" onclick="showCustomerProfile('+JSON.stringify(c.phone)+')">'+
+      '<td class="cn">'+name+'</td>'+
+      '<td class="cfn">'+(c.phone||'')+'</td>'+
+      '<td>'+tierBadge+'</td>'+
+      '<td>'+(c.total_orders||0)+'</td>'+
+      '<td style="text-align:right;font-weight:700">'+spend+'</td>'+
+      '<td>'+cat+'</td>'+
+      '<td>'+ag+'</td>'+
+      '<td>'+lastBuy+'</td>'+
+      '<td>'+lapsedBadge+'</td>'+
+      '<td>'+waBtn+'</td>'+
+      '</tr>';
+  });
+  html += '</tbody></table>';
+  if(rows.length>500){
+    html += '<div style="padding:12px;text-align:center;color:var(--t2);font-size:12px">Showing top 500 of '+rows.length.toLocaleString()+'. Refine filters or search to narrow down.</div>';
+  }
+  w.innerHTML = html;
+}
+
+async function showCustomerProfile(phone){
+  var p = document.getElementById('custPanel');
+  var inner = document.getElementById('custPanelInner');
+  inner.innerHTML = '<div style="padding:30px;text-align:center;color:var(--t2)">⏳ Loading profile...</div>';
+  p.style.display = 'block';
+  try{
+    var r = await fetch(API_BASE+'/customer-profile?phone='+encodeURIComponent(phone));
+    var d = await r.json();
+    if(d.status!=='ok'){ inner.innerHTML='<div style="padding:30px;color:var(--rd)">'+(d.error||'Error')+'</div>'; return; }
+    renderCustomerProfile(d, inner);
+  }catch(e){
+    inner.innerHTML = '<div style="padding:30px;color:var(--rd)">'+e.message+'</div>';
+  }
+}
+
+function closeCustomerProfile(){
+  document.getElementById('custPanel').style.display = 'none';
+}
+
+function renderCustomerProfile(d, container){
+  var c = d.customer;
+  if(!c){
+    container.innerHTML = '<div style="padding:30px;text-align:center"><h3>Phone +52 '+d.phone+'</h3><p style="color:var(--t2);margin-top:10px">No purchase history yet — this customer hasn\'t bought anything tracked in SQL Server.</p><button onclick="closeCustomerProfile()" style="margin-top:20px;padding:8px 16px;background:var(--s2);border:1px solid var(--bd);border-radius:8px;cursor:pointer">Close</button></div>';
+    return;
+  }
+  var tierColor = c.buyer_tier==='VIP' ? 'linear-gradient(135deg,#fbbf24,#f59e0b)'
+                : c.buyer_tier==='Regular' ? '#3b82f6' : '#9ca3af';
+  var tierIcon = c.buyer_tier==='VIP' ? '💎' : c.buyer_tier==='Regular' ? '⭐' : '👤';
+  var spend = '$'+Math.round(c.total_lifetime_mxn||0).toLocaleString()+' MXN';
+  var avgOrder = c.total_orders ? Math.round(c.total_lifetime_mxn/c.total_orders) : 0;
+  var lastBuy = c.last_purchase_date ? new Date(c.last_purchase_date).toLocaleDateString('es-MX',{year:'numeric',month:'long',day:'numeric'}) : '—';
+
+  var lapsedBanner = c.is_lapsed
+    ? '<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:10px;padding:12px;margin-bottom:16px;font-size:13px;color:#991b1b"><b>⏰ Lapsed customer</b> — last purchase '+c.days_since_last_purchase+' days ago. Re-engagement opportunity.</div>'
+    : '';
+
+  var purchasesHtml = '';
+  if(d.purchases && d.purchases.length){
+    purchasesHtml = '<h4 style="margin:20px 0 10px;font-size:13px;color:var(--t2);text-transform:uppercase;letter-spacing:0.5px">Recent Purchases</h4>';
+    d.purchases.forEach(function(p){
+      var date = p.purchase_date ? new Date(p.purchase_date).toLocaleDateString('es-MX',{month:'short',day:'numeric',year:'2-digit'}) : '—';
+      var cat = p.category || '—';
+      var store = p.store_code === 'TS0001' ? 'Leona' : p.store_code === 'TS0002' ? 'Cercu' : (p.store_code || '');
+      purchasesHtml += '<div style="padding:10px 12px;border:1px solid var(--bd);border-radius:8px;margin-bottom:6px;background:#fafafa">'+
+        '<div style="display:flex;justify-content:space-between;align-items:center">'+
+          '<div>'+
+            '<div style="font-weight:700;font-size:13px">'+(p.product_name||p.product_code||'—')+'</div>'+
+            '<div style="font-size:11px;color:var(--t2)">'+date+' · '+store+' · '+(p.vendedor||'—')+'</div>'+
+          '</div>'+
+          '<div style="text-align:right">'+
+            '<div style="font-weight:700;color:#16a34a">$'+Math.round(p.line_total||0).toLocaleString()+'</div>'+
+            '<div style="font-size:10px;color:var(--t2)">'+(p.qty||0)+' × $'+Math.round(p.unit_price||0)+'</div>'+
+          '</div>'+
+        '</div>'+
+        (cat!=='—' ? '<div style="margin-top:6px"><span style="background:#f3e8ff;color:#6b21a8;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600">'+cat+'</span></div>' : '')+
+      '</div>';
+    });
+  }
+
+  var waPh = '52'+c.phone;
+
+  container.innerHTML =
+    '<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:16px">'+
+      '<div>'+
+        '<h2 style="font-size:20px;font-weight:800;margin:0">'+(c.name||'(no name)')+'</h2>'+
+        '<div style="font-size:13px;color:var(--t2);margin-top:2px">+52 '+c.phone+(c.city?' · '+c.city:'')+'</div>'+
+      '</div>'+
+      '<button onclick="closeCustomerProfile()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:var(--t2);padding:0 4px">×</button>'+
+    '</div>'+
+
+    '<div style="display:inline-block;padding:6px 14px;background:'+tierColor+';color:#fff;border-radius:20px;font-weight:700;font-size:13px;margin-bottom:16px">'+tierIcon+' '+(c.buyer_tier||'Casual')+'</div>'+
+
+    lapsedBanner +
+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:18px">'+
+      '<div style="padding:12px;background:#f1f5f9;border-radius:10px"><div style="font-size:11px;color:var(--t2)">Lifetime Spend</div><div style="font-size:18px;font-weight:800;color:#16a34a">'+spend+'</div></div>'+
+      '<div style="padding:12px;background:#f1f5f9;border-radius:10px"><div style="font-size:11px;color:var(--t2)">Total Orders</div><div style="font-size:18px;font-weight:800">'+(c.total_orders||0)+'</div></div>'+
+      '<div style="padding:12px;background:#f1f5f9;border-radius:10px"><div style="font-size:11px;color:var(--t2)">Avg Order</div><div style="font-size:18px;font-weight:800">$'+avgOrder.toLocaleString()+'</div></div>'+
+      '<div style="padding:12px;background:#f1f5f9;border-radius:10px"><div style="font-size:11px;color:var(--t2)">Last Purchase</div><div style="font-size:14px;font-weight:700">'+lastBuy+'</div></div>'+
+    '</div>'+
+
+    (c.total_online_orders || c.total_walkin_orders ?
+      '<div style="display:flex;gap:8px;margin-bottom:18px">'+
+        '<div style="flex:1;padding:10px;border:1px solid #bbf7d0;background:#f0fdf4;border-radius:8px;font-size:12px">'+
+          '<b style="color:#16a34a">🛒 Online</b>: '+(c.total_online_orders||0)+' orders · $'+Math.round(c.total_online_mxn||0).toLocaleString()+
+        '</div>'+
+        '<div style="flex:1;padding:10px;border:1px solid #cbd5e1;background:#f8fafc;border-radius:8px;font-size:12px">'+
+          '<b style="color:#475569">🏪 Walk-in</b>: '+(c.total_walkin_orders||0)+' orders · $'+Math.round(c.total_walkin_mxn||0).toLocaleString()+
+        '</div>'+
+      '</div>' : '')+
+
+    '<h4 style="margin:0 0 10px;font-size:13px;color:var(--t2);text-transform:uppercase;letter-spacing:0.5px">Profile</h4>'+
+    '<div style="font-size:13px;line-height:1.8;color:var(--t1)">'+
+      (c.favorite_category ? '<div>👗 Favorite category: <b>'+c.favorite_category+'</b></div>' : '')+
+      (c.favorite_product ? '<div>🏷️ Favorite product: <b>'+c.favorite_product+'</b></div>' : '')+
+      (c.favorite_agent ? '<div>👤 Usually buys from: <b>'+c.favorite_agent+'</b></div>' : '')+
+      (c.favorite_store ? '<div>🏬 Favorite store: <b>'+(c.favorite_store==='TS0001'?'Leona Vicario':c.favorite_store==='TS0002'?'Cercu':c.favorite_store)+'</b></div>' : '')+
+      (c.favorite_payment ? '<div>💳 Usual payment: <b>'+c.favorite_payment+'</b></div>' : '')+
+      (c.top_lead_source ? '<div>📍 Lead source: <b>'+c.top_lead_source+'</b></div>' : '')+
+    '</div>'+
+
+    purchasesHtml +
+
+    '<div style="margin-top:24px;display:flex;gap:8px">'+
+      '<a href="https://wa.me/'+waPh+'" target="_blank" style="flex:1;display:block;padding:12px;background:#25d366;color:#fff;text-align:center;text-decoration:none;border-radius:10px;font-weight:700;font-size:13px">💬 Open WhatsApp</a>'+
+      '<button onclick="closeCustomerProfile()" style="padding:12px 20px;background:transparent;border:1px solid var(--bd);border-radius:10px;cursor:pointer;font-weight:600">Close</button>'+
+    '</div>';
+}
+
+function rnCust(){
+  // Wire up filter pills
+  document.querySelectorAll('[data-cf]').forEach(function(b){
+    b.classList.toggle('a', b.dataset.cf===_custFilter);
+    b.onclick = function(){
+      _custFilter = b.dataset.cf;
+      document.querySelectorAll('[data-cf]').forEach(function(x){x.classList.toggle('a', x.dataset.cf===_custFilter)});
+      renderCustomerTable();
+    };
+  });
+  document.getElementById('custSch').oninput = renderCustomerTable;
+  document.getElementById('custRf').onclick = loadCustomers;
+
+  // Load on first show
+  if(!_custData) loadCustomers();
+  else { renderCustomerStats(); renderCustomerTable(); }
+}
 async function refreshSyncStats(){
   try{
     var r=await fetch(API_BASE+'/sync-sales',{method:'GET'});
@@ -826,7 +1107,7 @@ function rnMUI(){document.getElementById('upSec').style.display='none';document.
   var ncCnt=(typeof nancyCL!=='undefined')?nancyCL.length:0;
   var jcCnt=(typeof jazminCL!=='undefined')?jazminCL.length:0;
   var ycCnt=(typeof yoanaCL!=='undefined')?yoanaCL.length:0;
-  var nvs=[{id:'reports',i:'📊',l:'Reports'},{id:'agents',i:'👥',l:'Agents',c:ttl},{id:'calllist',i:'📞',l:'Master Calls',c:clCnt},{id:'nancycl',i:'📞',l:'Nancy Calls',c:ncCnt},{id:'jazmincl',i:'📞',l:'Jazmin Calls',c:jcCnt},{id:'yoanacl',i:'📞',l:'Yoana Calls',c:ycCnt},{id:'performance',i:'📈',l:'Performance'},{id:'watchlist',i:'🔍',l:'Watchlist',c:wl.length},{id:'map',i:'🗺️',l:'Map'},{id:'log',i:'📝',l:'Log',c:alog.length}];
+  var nvs=[{id:'reports',i:'📊',l:'Reports'},{id:'customers',i:'💎',l:'Customers'},{id:'agents',i:'👥',l:'Agents',c:ttl},{id:'calllist',i:'📞',l:'Master Calls',c:clCnt},{id:'nancycl',i:'📞',l:'Nancy Calls',c:ncCnt},{id:'jazmincl',i:'📞',l:'Jazmin Calls',c:jcCnt},{id:'yoanacl',i:'📞',l:'Yoana Calls',c:ycCnt},{id:'performance',i:'📈',l:'Performance'},{id:'watchlist',i:'🔍',l:'Watchlist',c:wl.length},{id:'map',i:'🗺️',l:'Map'},{id:'log',i:'📝',l:'Log',c:alog.length}];
   // Admin-only: Upload Log tab
   if(typeof IS_ADMIN!=='undefined' && IS_ADMIN){
     nvs.push({id:'uploadlog',i:'📜',l:'Upload Log'});
@@ -834,7 +1115,7 @@ function rnMUI(){document.getElementById('upSec').style.display='none';document.
   document.getElementById('nB').innerHTML=nvs.map(function(n){return'<button class="nv '+(cNav===n.id?'a':'')+'" data-n="'+n.id+'">'+n.i+' '+n.l+(n.c!=null?'<span class="ct">'+n.c+'</span>':'')+'</button>'}).join('');
   document.querySelectorAll('.nv[data-n]').forEach(function(b){b.onclick=function(){cNav=b.dataset.n;document.querySelectorAll('.nv[data-n]').forEach(function(x){x.classList.remove('a')});b.classList.add('a');shP()}});shP()}
 
-function shP(){document.querySelectorAll('.pn').forEach(function(p){p.classList.remove('av')});var id='p'+cNav.charAt(0).toUpperCase()+cNav.slice(1);var el=document.getElementById(id);if(el)el.classList.add('av');if(cNav==='reports')rnRp();else if(cNav==='agents')rnAg();else if(cNav==='watchlist')rnWl();else if(cNav==='log')rnLg();else if(cNav==='performance')rnPf();else if(cNav==='calllist')rnCL();else if(cNav==='nancycl')rnNCL();else if(cNav==='jazmincl')rnJCL();else if(cNav==='yoanacl')rnYCL();else if(cNav==='map')rnMap();else if(cNav==='uploadlog')rnUL()}
+function shP(){document.querySelectorAll('.pn').forEach(function(p){p.classList.remove('av')});var id='p'+cNav.charAt(0).toUpperCase()+cNav.slice(1);var el=document.getElementById(id);if(el)el.classList.add('av');if(cNav==='reports')rnRp();else if(cNav==='customers')rnCust();else if(cNav==='agents')rnAg();else if(cNav==='watchlist')rnWl();else if(cNav==='log')rnLg();else if(cNav==='performance')rnPf();else if(cNav==='calllist')rnCL();else if(cNav==='nancycl')rnNCL();else if(cNav==='jazmincl')rnJCL();else if(cNav==='yoanacl')rnYCL();else if(cNav==='map')rnMap();else if(cNav==='uploadlog')rnUL()}
 
 // ── REPORTS ──
 function rnRp(){var tbs=Object.keys(rp);if(!cRT)cRT=tbs[0];document.getElementById('rTabs').innerHTML=tbs.map(function(t){return'<button class="nv '+(cRT===t?'a':'')+'" data-t="'+t+'">'+t+'<span class="ct">'+(rp[t]?rp[t].length:0)+'</span></button>'}).join('');document.querySelectorAll('[data-t]').forEach(function(b){b.onclick=function(){cRT=b.dataset.t;sC=-1;document.querySelectorAll('[data-t]').forEach(function(x){x.classList.remove('a')});b.classList.add('a');rnRT()}});document.getElementById('rSch').oninput=rnRT;document.getElementById('exBtn').onclick=exXL;document.getElementById('nwBtn').onclick=function(){fl={c:null,m:null,v:null};document.getElementById('upSec').style.display='flex';document.getElementById('mainUI').style.display='none';document.getElementById('fSt').innerHTML='';rBn.disabled=true;rBn.textContent='▶ Build CRM';fIn.value=''};rnRT()}

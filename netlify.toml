@@ -44,3 +44,8 @@
   from = "/api/customer-profile"
   to = "/.netlify/functions/customer-profile"
   status = 200
+
+[[redirects]]
+  from = "/api/customers-list"
+  to = "/.netlify/functions/customers-list"
+  status = 200
