@@ -72,7 +72,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--bd);vertical-align:middl
 </head>
 <body>
 <div class="app">
-<div class="hdr"><h1>👗 Sahiba <span>CRM</span></h1><span class="dt" id="dtL"></span><span class="ll" id="ll"></span></div>
+<div class="hdr"><h1>👗 Sahiba <span>CRM</span></h1><span class="dt" id="dtL"></span><span class="ll" id="ll"></span><div id="langToggle" style="margin-left:auto;display:flex;gap:0;background:#f1f5f9;border-radius:8px;padding:3px;border:1px solid var(--bd)"><button id="langEN" style="padding:5px 12px;border:none;background:transparent;font-size:12px;font-weight:700;cursor:pointer;border-radius:6px;color:var(--t2)">🇬🇧 EN</button><button id="langES" style="padding:5px 12px;border:none;background:transparent;font-size:12px;font-weight:700;cursor:pointer;border-radius:6px;color:var(--t2)">🇲🇽 ES</button></div></div>
 <div id="upSec" style="display:none">
 <div style="max-width:620px;margin:0 auto;display:flex;flex-direction:column;gap:18px">
 
@@ -180,7 +180,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--bd);vertical-align:middl
 <div id="mainUI" style="display:none">
 <div class="sr" id="sR"></div>
 <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;padding:8px 14px;background:var(--s);border-radius:10px;border:1px solid var(--bd)">
-<span style="font-size:12px;font-weight:600;color:var(--t2)">📅 Window:</span>
+<span style="font-size:12px;font-weight:600;color:var(--t2)">📅 <span data-i18n="win.window">Window:</span></span>
 <select id="daysSelMain" style="padding:4px 10px;border-radius:6px;border:1px solid var(--bd);font-size:13px;font-weight:700;background:var(--s);color:var(--t1);cursor:pointer">
 <option value="1">1 day</option>
 <option value="2">2 days</option>
@@ -209,16 +209,17 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--bd);vertical-align:middl
 <div class="pn" id="pCustomers">
 <div class="tb">
 <div style="display:flex;gap:6px;flex-wrap:wrap" id="custFilters">
-<button class="nv" data-cf="all">All<span class="ct" id="cfAll">—</span></button>
-<button class="nv" data-cf="vip">💎 VIPs<span class="ct" id="cfVip">—</span></button>
-<button class="nv" data-cf="lapsed">⏰ Lapsed<span class="ct" id="cfLapsed">—</span></button>
-<button class="nv" data-cf="online">🛒 Online<span class="ct" id="cfOnline">—</span></button>
-<button class="nv" data-cf="vestido">👗 Vestidos</button>
-<button class="nv" data-cf="blusa">👕 Blusas</button>
-<button class="nv" data-cf="bata">🥻 Batas</button>
+<button class="nv" data-cf="all"><span data-i18n="cust.all">All</span><span class="ct" id="cfAll">—</span></button>
+<button class="nv" data-cf="mine">👤 <span data-i18n="cust.mine">Mine</span><span class="ct" id="cfMine">—</span></button>
+<button class="nv" data-cf="vip">💎 <span data-i18n="cust.vips">VIPs</span><span class="ct" id="cfVip">—</span></button>
+<button class="nv" data-cf="lapsed">⏰ <span data-i18n="cust.lapsed">Lapsed</span><span class="ct" id="cfLapsed">—</span></button>
+<button class="nv" data-cf="online">🛒 <span data-i18n="cust.online">Online</span><span class="ct" id="cfOnline">—</span></button>
+<button class="nv" data-cf="vestido">👗 <span data-i18n="cust.vestidos">Vestidos</span></button>
+<button class="nv" data-cf="blusa">👕 <span data-i18n="cust.blusas">Blusas</span></button>
+<button class="nv" data-cf="bata">🥻 <span data-i18n="cust.batas">Batas</span></button>
 </div>
-<input type="text" class="sb" id="custSch" placeholder="Search name or phone..." style="margin-left:10px">
-<div class="tr"><button class="bs bsy" id="custRf">🔄 Refresh</button></div>
+<input type="text" class="sb" id="custSch" placeholder="Search name or phone..." data-i18n-placeholder="cust.search" style="margin-left:10px">
+<div class="tr"><button class="bs bsy" id="custRf">🔄 <span data-i18n="btn.refresh">Refresh</span></button></div>
 </div>
 <div id="custStats" style="display:flex;gap:10px;margin:12px 0;flex-wrap:wrap"></div>
 <div class="tw" id="custTbl"></div>
@@ -232,6 +233,176 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--bd);vertical-align:middl
 <script>
 // ══════ CSV UPLOAD (primary) + API SYNC (optional) ══════
 var API_BASE='/api';
+
+// ═══════════════════════════════════════════════════════════════════
+// i18n — bilingual UI (English / Spanish)
+// ═══════════════════════════════════════════════════════════════════
+// Language is stored in localStorage. Default = English.
+// Switching language re-applies all i18n attributes across the DOM.
+var I18N = {
+  // Navigation tabs
+  'nav.reports':       { en: 'Reports',        es: 'Reportes' },
+  'nav.customers':     { en: 'Customers',      es: 'Clientes' },
+  'nav.agents':        { en: 'Agents',         es: 'Agentes' },
+  'nav.master_calls':  { en: 'Master Calls',   es: 'Llamadas Maestras' },
+  'nav.nancy_calls':   { en: 'Nancy Calls',    es: 'Llamadas Nancy' },
+  'nav.jazmin_calls':  { en: 'Jazmin Calls',   es: 'Llamadas Jazmin' },
+  'nav.yoana_calls':   { en: 'Yoana Calls',    es: 'Llamadas Yoana' },
+  'nav.performance':   { en: 'Performance',    es: 'Desempeño' },
+  'nav.watchlist':     { en: 'Watchlist',      es: 'Vigilancia' },
+  'nav.map':           { en: 'Map',            es: 'Mapa' },
+  'nav.log':           { en: 'Log',            es: 'Bitácora' },
+  'nav.upload_log':    { en: 'Upload Log',     es: 'Historial' },
+
+  // KPI tiles
+  'kpi.hot_customers': { en: 'Hot Customers',  es: 'Clientes Calientes' },
+  'kpi.hot_leads':     { en: 'Hot Leads',      es: 'Leads Calientes' },
+  'kpi.paid':          { en: 'Paid',           es: 'Pagado' },
+  'kpi.watchlist':     { en: 'Watchlist',      es: 'Vigilancia' },
+  'kpi.agent_tasks':   { en: 'Agent Tasks',    es: 'Tareas' },
+
+  // Window selector
+  'win.window':        { en: 'Window:',        es: 'Período:' },
+  'win.rebuild':       { en: 'Rebuild',        es: 'Reconstruir' },
+  'win.showing':       { en: 'Showing last',   es: 'Últimos' },
+  'win.days_data':     { en: 'days of data',   es: 'días de datos' },
+
+  // Buttons
+  'btn.search':        { en: 'Search...',      es: 'Buscar...' },
+  'btn.excel':         { en: 'Excel',          es: 'Excel' },
+  'btn.resync':        { en: 'Re-Sync',        es: 'Recargar' },
+  'btn.new_data':      { en: 'New Data',       es: 'Nueva Data' },
+  'btn.refresh':       { en: 'Refresh',        es: 'Actualizar' },
+  'btn.close':         { en: 'Close',          es: 'Cerrar' },
+  'btn.copy':          { en: 'Copy',           es: 'Copiar' },
+  'btn.open_whatsapp': { en: 'Open WhatsApp',  es: 'Abrir WhatsApp' },
+
+  // Reports sub-tabs
+  'rp.hot_cust':       { en: 'Hot Cust',       es: 'Clientes' },
+  'rp.hot_leads':      { en: 'Hot Leads',      es: 'Leads' },
+  'rp.paid':           { en: 'Paid',           es: 'Pagado' },
+  'rp.returning':      { en: 'Returning',      es: 'Recurrentes' },
+  'rp.cities':         { en: 'Cities',         es: 'Ciudades' },
+
+  // Customers tab — filters
+  'cust.title':        { en: 'Customer Intelligence', es: 'Inteligencia de Clientes' },
+  'cust.all':          { en: 'All',            es: 'Todos' },
+  'cust.mine':         { en: 'Mine',           es: 'Míos' },
+  'cust.vips':         { en: 'VIPs',           es: 'VIPs' },
+  'cust.lapsed':       { en: 'Lapsed',         es: 'Inactivos' },
+  'cust.online':       { en: 'Online',         es: 'En línea' },
+  'cust.vestidos':     { en: 'Vestidos',       es: 'Vestidos' },
+  'cust.blusas':       { en: 'Blusas',         es: 'Blusas' },
+  'cust.batas':        { en: 'Batas',          es: 'Batas' },
+  'cust.search':       { en: 'Search name or phone...', es: 'Buscar nombre o teléfono...' },
+
+  // Customers tab — stat cards
+  'cust.total':        { en: 'Total Customers', es: 'Total Clientes' },
+  'cust.avg_lifetime': { en: 'Avg Lifetime',    es: 'Gasto Promedio' },
+  'cust.top_spender':  { en: 'Top Spender',     es: 'Mayor Gasto' },
+
+  // Customers table headers
+  'cust.col_customer': { en: 'Customer',       es: 'Cliente' },
+  'cust.col_phone':    { en: 'Phone',          es: 'Teléfono' },
+  'cust.col_tier':     { en: 'Tier',           es: 'Nivel' },
+  'cust.col_orders':   { en: 'Orders',         es: 'Pedidos' },
+  'cust.col_spend':    { en: 'Lifetime $',     es: 'Total $' },
+  'cust.col_favorite': { en: 'Favorite',       es: 'Favorito' },
+  'cust.col_agent':    { en: 'Agent',          es: 'Agente' },
+  'cust.col_last_buy': { en: 'Last Buy',       es: 'Última Compra' },
+  'cust.col_status':   { en: 'Status',         es: 'Estado' },
+
+  // Customer profile panel
+  'cp.lifetime_spend': { en: 'Lifetime Spend', es: 'Gasto Total' },
+  'cp.total_orders':   { en: 'Total Orders',   es: 'Pedidos Totales' },
+  'cp.avg_order':      { en: 'Avg Order',      es: 'Pedido Promedio' },
+  'cp.last_purchase':  { en: 'Last Purchase',  es: 'Última Compra' },
+  'cp.profile':        { en: 'Profile',        es: 'Perfil' },
+  'cp.recent_purchases': { en: 'Recent Purchases', es: 'Compras Recientes' },
+  'cp.lapsed_msg':     { en: 'Lapsed customer — last purchase',
+                         es: 'Cliente inactivo — última compra hace' },
+  'cp.days_ago':       { en: 'days ago. Re-engagement opportunity.',
+                         es: 'días. Oportunidad de reconexión.' },
+  'cp.fav_category':   { en: 'Favorite category',  es: 'Categoría favorita' },
+  'cp.fav_product':    { en: 'Favorite product',   es: 'Producto favorito' },
+  'cp.fav_agent':      { en: 'Usually buys from',  es: 'Compra habitualmente con' },
+  'cp.fav_store':      { en: 'Favorite store',     es: 'Tienda favorita' },
+  'cp.fav_payment':    { en: 'Usual payment',      es: 'Pago habitual' },
+  'cp.lead_source':    { en: 'Lead source',        es: 'Origen' },
+  'cp.online':         { en: 'Online',             es: 'En línea' },
+  'cp.walkin':         { en: 'Walk-in',            es: 'Tienda' },
+  'cp.orders':         { en: 'orders',             es: 'pedidos' },
+  'cp.no_history':     { en: "No purchase history yet — this customer hasn't bought anything tracked in SQL Server.",
+                         es: 'Sin historial de compras — esta cliente no ha comprado nada registrado en el sistema.' },
+
+  // Tier badges
+  'tier.vip':          { en: 'VIP',             es: 'VIP' },
+  'tier.regular':      { en: 'Regular',         es: 'Regular' },
+  'tier.casual':       { en: 'Casual',          es: 'Casual' },
+  'tier.active':       { en: 'Active',          es: 'Activo' },
+
+  // Date label
+  'lbl.last_loaded':   { en: 'Last loaded:',    es: 'Última carga:' },
+};
+
+// Active language — read from localStorage, default to English
+var LANG = (function(){
+  var stored = localStorage.getItem('sahiba_lang');
+  if (stored === 'es' || stored === 'en') return stored;
+  return 'en'; // default
+})();
+
+function t(key) {
+  var entry = I18N[key];
+  if (!entry) return key;
+  return entry[LANG] || entry.en || key;
+}
+
+function setLanguage(lang) {
+  if (lang !== 'en' && lang !== 'es') return;
+  LANG = lang;
+  localStorage.setItem('sahiba_lang', lang);
+  applyLanguage();
+}
+
+// Re-apply language across the DOM. Called on init and on toggle.
+function applyLanguage() {
+  // Update language button visual state
+  var bEN = document.getElementById('langEN');
+  var bES = document.getElementById('langES');
+  if (bEN && bES) {
+    var activeStyle = 'background:#fff;color:#1e293b;box-shadow:0 1px 3px rgba(0,0,0,0.08)';
+    var inactiveStyle = 'background:transparent;color:var(--t2)';
+    bEN.style.cssText = 'padding:5px 12px;border:none;font-size:12px;font-weight:700;cursor:pointer;border-radius:6px;'+(LANG==='en'?activeStyle:inactiveStyle);
+    bES.style.cssText = 'padding:5px 12px;border:none;font-size:12px;font-weight:700;cursor:pointer;border-radius:6px;'+(LANG==='es'?activeStyle:inactiveStyle);
+  }
+
+  // Update all elements with data-i18n attribute
+  document.querySelectorAll('[data-i18n]').forEach(function(el){
+    var key = el.getAttribute('data-i18n');
+    el.textContent = t(key);
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(function(el){
+    var key = el.getAttribute('data-i18n-placeholder');
+    el.placeholder = t(key);
+  });
+
+  // Re-render tab nav and content if rendered already
+  if (typeof rnNav === 'function' && typeof cNav !== 'undefined' && cNav) rnNav();
+  if (typeof renderCustomerTable === 'function' && typeof _custData !== 'undefined' && _custData) {
+    renderCustomerStats();
+    renderCustomerTable();
+  }
+}
+
+// Wire up toggle buttons after DOM ready
+setTimeout(function(){
+  var bEN = document.getElementById('langEN');
+  var bES = document.getElementById('langES');
+  if (bEN) bEN.onclick = function(){ setLanguage('en') };
+  if (bES) bES.onclick = function(){ setLanguage('es') };
+  applyLanguage();
+}, 100);
 
 // ═══ ADMIN / AGENT VIEW GATE ═══
 // URL ?v=nancy|jazmin|yoana → agent view (read-only, no upload)
@@ -561,8 +732,20 @@ function renderCustomerStats(){
   document.getElementById('cfVip').textContent = (s.vip||0).toLocaleString();
   document.getElementById('cfLapsed').textContent = (s.lapsed||0).toLocaleString();
   document.getElementById('cfOnline').textContent = (s.online||0).toLocaleString();
+  // "Mine" count — count customers where favorite_agent matches the current view
+  var myName = (typeof VIEW_MODE !== 'undefined' && VIEW_MODE)
+    ? (VIEW_MODE.charAt(0).toUpperCase() + VIEW_MODE.slice(1)) : null;
+  var mineCount = 0;
+  if (myName && _custData) {
+    mineCount = _custData.filter(function(c){ return c.favorite_agent === myName }).length;
+  }
+  var cfMine = document.getElementById('cfMine');
+  if (cfMine) cfMine.textContent = mineCount.toLocaleString();
+  // Hide "Mine" pill for admin (no agent context)
+  var mineBtn = document.querySelector('[data-cf="mine"]');
+  if (mineBtn) mineBtn.style.display = myName ? '' : 'none';
 
-  // Render top stat cards
+  // Render top stat cards (i18n)
   var st = document.getElementById('custStats');
   function tile(label, val, color){
     return '<div style="flex:1;min-width:130px;padding:12px;background:'+color+';border-radius:10px;text-align:center">'+
@@ -572,11 +755,11 @@ function renderCustomerStats(){
   var avg = s.avg_lifetime ? '$'+Math.round(s.avg_lifetime).toLocaleString() : '—';
   var top = s.top_spender ? '$'+Math.round(s.top_spender).toLocaleString() : '—';
   st.innerHTML =
-    tile('Total Customers', (s.total||0).toLocaleString(), '#f1f5f9') +
-    tile('💎 VIPs', (s.vip||0).toLocaleString(), '#fef3c7') +
-    tile('⏰ Lapsed', (s.lapsed||0).toLocaleString(), '#fee2e2') +
-    tile('Avg Lifetime', avg, '#dcfce7') +
-    tile('Top Spender', top, '#e0e7ff');
+    tile(t('cust.total'), (s.total||0).toLocaleString(), '#f1f5f9') +
+    tile('💎 '+t('cust.vips'), (s.vip||0).toLocaleString(), '#fef3c7') +
+    tile('⏰ '+t('cust.lapsed'), (s.lapsed||0).toLocaleString(), '#fee2e2') +
+    tile(t('cust.avg_lifetime'), avg, '#dcfce7') +
+    tile(t('cust.top_spender'), top, '#e0e7ff');
 }
 
 function renderCustomerTable(){
@@ -586,6 +769,12 @@ function renderCustomerTable(){
     w.innerHTML = '<div style="padding:30px;text-align:center;color:var(--t2)">No customer data yet. Run "⚡ Sync SQL Server → Neon" first.</div>';
     return;
   }
+  // Determine the agent name for "Mine" filter — use VIEW_MODE if agent, else null
+  var myName = null;
+  if (typeof VIEW_MODE !== 'undefined' && VIEW_MODE) {
+    myName = VIEW_MODE.charAt(0).toUpperCase() + VIEW_MODE.slice(1); // 'nancy' -> 'Nancy'
+  }
+
   // Apply filter
   var rows = _custData.filter(function(c){
     if(_custFilter==='vip' && c.buyer_tier!=='VIP') return false;
@@ -594,6 +783,7 @@ function renderCustomerTable(){
     if(_custFilter==='vestido' && c.favorite_category!=='Vestido') return false;
     if(_custFilter==='blusa' && c.favorite_category!=='Blusa') return false;
     if(_custFilter==='bata' && c.favorite_category!=='Bata') return false;
+    if(_custFilter==='mine' && (!myName || c.favorite_agent !== myName)) return false;
     if(q){
       var hay = ((c.name||'')+' '+(c.phone||'')+' '+(c.city||'')).toLowerCase();
       if(hay.indexOf(q)<0) return false;
@@ -601,47 +791,47 @@ function renderCustomerTable(){
     return true;
   });
 
-  // Sort by lifetime spend descending (most valuable first)
+  // Sort by lifetime spend descending
   rows.sort(function(a,b){ return (b.total_lifetime_mxn||0) - (a.total_lifetime_mxn||0); });
 
-  document.getElementById('custCnt').textContent = rows.length.toLocaleString() + ' customers';
+  document.getElementById('custCnt').textContent = rows.length.toLocaleString() + ' ' + t('nav.customers').toLowerCase();
 
   if(rows.length===0){
-    w.innerHTML = '<div style="padding:30px;text-align:center;color:var(--t2)">No customers match this filter.</div>';
+    w.innerHTML = '<div style="padding:30px;text-align:center;color:var(--t2)">— —</div>';
     return;
   }
 
-  // Build table
+  // Build table with translated headers
   var html = '<table><thead><tr>'+
-    '<th>Customer</th>'+
-    '<th>Phone</th>'+
-    '<th>Tier</th>'+
-    '<th>Orders</th>'+
-    '<th style="text-align:right">Lifetime $</th>'+
-    '<th>Favorite</th>'+
-    '<th>Agent</th>'+
-    '<th>Last Buy</th>'+
-    '<th>Status</th>'+
+    '<th>'+t('cust.col_customer')+'</th>'+
+    '<th>'+t('cust.col_phone')+'</th>'+
+    '<th>'+t('cust.col_tier')+'</th>'+
+    '<th>'+t('cust.col_orders')+'</th>'+
+    '<th style="text-align:right">'+t('cust.col_spend')+'</th>'+
+    '<th>'+t('cust.col_favorite')+'</th>'+
+    '<th>'+t('cust.col_agent')+'</th>'+
+    '<th>'+t('cust.col_last_buy')+'</th>'+
+    '<th>'+t('cust.col_status')+'</th>'+
     '<th></th>'+
     '</tr></thead><tbody>';
 
   rows.slice(0,500).forEach(function(c){
     var name = c.name || '<span style="color:var(--t3)">—</span>';
     var tierBadge = '';
-    if(c.buyer_tier==='VIP') tierBadge = '<span style="background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#fff;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:700">💎 VIP</span>';
-    else if(c.buyer_tier==='Regular') tierBadge = '<span style="background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:600">Regular</span>';
-    else tierBadge = '<span style="background:#f3f4f6;color:#6b7280;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:600">Casual</span>';
+    if(c.buyer_tier==='VIP') tierBadge = '<span style="background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#fff;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:700">💎 '+t('tier.vip')+'</span>';
+    else if(c.buyer_tier==='Regular') tierBadge = '<span style="background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:600">'+t('tier.regular')+'</span>';
+    else tierBadge = '<span style="background:#f3f4f6;color:#6b7280;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:600">'+t('tier.casual')+'</span>';
 
     var cat = c.favorite_category ? '<span style="background:#f3e8ff;color:#6b21a8;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:600">'+c.favorite_category+'</span>' : '<span style="color:var(--t3)">—</span>';
     var ag = c.favorite_agent ? '<span class="bd ba">'+c.favorite_agent+'</span>' : '<span style="color:var(--t3)">—</span>';
     var lapsedBadge = c.is_lapsed
       ? '<span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:600">⏰ '+c.days_since_last_purchase+'d</span>'
-      : '<span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:600">✓ Active</span>';
-    var lastBuy = c.last_purchase_date ? new Date(c.last_purchase_date).toLocaleDateString('es-MX',{month:'short',day:'numeric',year:'2-digit'}) : '—';
+      : '<span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:600">✓ '+t('tier.active')+'</span>';
+    var locale = LANG === 'es' ? 'es-MX' : 'en-US';
+    var lastBuy = c.last_purchase_date ? new Date(c.last_purchase_date).toLocaleDateString(locale,{month:'short',day:'numeric',year:'2-digit'}) : '—';
     var spend = c.total_lifetime_mxn ? '$'+Math.round(c.total_lifetime_mxn).toLocaleString() : '$0';
-    // WhatsApp link from phone — Mexico phones need 52 prefix
     var waPh = c.phone ? '52'+c.phone : '';
-    var waBtn = waPh ? '<a href="https://wa.me/'+waPh+'" target="_blank" style="background:#25d366;color:#fff;padding:3px 10px;border-radius:5px;font-size:10px;font-weight:700;text-decoration:none">💬</a>' : '';
+    var waBtn = waPh ? '<a href="https://wa.me/'+waPh+'" target="_blank" onclick="event.stopPropagation()" style="background:#25d366;color:#fff;padding:3px 10px;border-radius:5px;font-size:10px;font-weight:700;text-decoration:none">💬</a>' : '';
 
     html += '<tr style="cursor:pointer" onclick="showCustomerProfile('+JSON.stringify(c.phone)+')">'+
       '<td class="cn">'+name+'</td>'+
@@ -658,7 +848,8 @@ function renderCustomerTable(){
   });
   html += '</tbody></table>';
   if(rows.length>500){
-    html += '<div style="padding:12px;text-align:center;color:var(--t2);font-size:12px">Showing top 500 of '+rows.length.toLocaleString()+'. Refine filters or search to narrow down.</div>';
+    var more = LANG==='es' ? ('Mostrando los primeros 500 de '+rows.length.toLocaleString()+'. Refina filtros o búsqueda.') : ('Showing top 500 of '+rows.length.toLocaleString()+'. Refine filters or search to narrow down.');
+    html += '<div style="padding:12px;text-align:center;color:var(--t2);font-size:12px">'+more+'</div>';
   }
   w.innerHTML = html;
 }
@@ -685,25 +876,27 @@ function closeCustomerProfile(){
 function renderCustomerProfile(d, container){
   var c = d.customer;
   if(!c){
-    container.innerHTML = '<div style="padding:30px;text-align:center"><h3>Phone +52 '+d.phone+'</h3><p style="color:var(--t2);margin-top:10px">No purchase history yet — this customer hasn\'t bought anything tracked in SQL Server.</p><button onclick="closeCustomerProfile()" style="margin-top:20px;padding:8px 16px;background:var(--s2);border:1px solid var(--bd);border-radius:8px;cursor:pointer">Close</button></div>';
+    container.innerHTML = '<div style="padding:30px;text-align:center"><h3>Phone +52 '+d.phone+'</h3><p style="color:var(--t2);margin-top:10px">'+t('cp.no_history')+'</p><button onclick="closeCustomerProfile()" style="margin-top:20px;padding:8px 16px;background:var(--s2);border:1px solid var(--bd);border-radius:8px;cursor:pointer">'+t('btn.close')+'</button></div>';
     return;
   }
   var tierColor = c.buyer_tier==='VIP' ? 'linear-gradient(135deg,#fbbf24,#f59e0b)'
                 : c.buyer_tier==='Regular' ? '#3b82f6' : '#9ca3af';
   var tierIcon = c.buyer_tier==='VIP' ? '💎' : c.buyer_tier==='Regular' ? '⭐' : '👤';
+  var tierLabel = c.buyer_tier==='VIP' ? t('tier.vip') : c.buyer_tier==='Regular' ? t('tier.regular') : t('tier.casual');
   var spend = '$'+Math.round(c.total_lifetime_mxn||0).toLocaleString()+' MXN';
   var avgOrder = c.total_orders ? Math.round(c.total_lifetime_mxn/c.total_orders) : 0;
-  var lastBuy = c.last_purchase_date ? new Date(c.last_purchase_date).toLocaleDateString('es-MX',{year:'numeric',month:'long',day:'numeric'}) : '—';
+  var locale = LANG === 'es' ? 'es-MX' : 'en-US';
+  var lastBuy = c.last_purchase_date ? new Date(c.last_purchase_date).toLocaleDateString(locale,{year:'numeric',month:'long',day:'numeric'}) : '—';
 
   var lapsedBanner = c.is_lapsed
-    ? '<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:10px;padding:12px;margin-bottom:16px;font-size:13px;color:#991b1b"><b>⏰ Lapsed customer</b> — last purchase '+c.days_since_last_purchase+' days ago. Re-engagement opportunity.</div>'
+    ? '<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:10px;padding:12px;margin-bottom:16px;font-size:13px;color:#991b1b"><b>⏰ '+t('cp.lapsed_msg')+' '+c.days_since_last_purchase+' '+t('cp.days_ago')+'</b></div>'
     : '';
 
   var purchasesHtml = '';
   if(d.purchases && d.purchases.length){
-    purchasesHtml = '<h4 style="margin:20px 0 10px;font-size:13px;color:var(--t2);text-transform:uppercase;letter-spacing:0.5px">Recent Purchases</h4>';
+    purchasesHtml = '<h4 style="margin:20px 0 10px;font-size:13px;color:var(--t2);text-transform:uppercase;letter-spacing:0.5px">'+t('cp.recent_purchases')+'</h4>';
     d.purchases.forEach(function(p){
-      var date = p.purchase_date ? new Date(p.purchase_date).toLocaleDateString('es-MX',{month:'short',day:'numeric',year:'2-digit'}) : '—';
+      var date = p.purchase_date ? new Date(p.purchase_date).toLocaleDateString(locale,{month:'short',day:'numeric',year:'2-digit'}) : '—';
       var cat = p.category || '—';
       var store = p.store_code === 'TS0001' ? 'Leona' : p.store_code === 'TS0002' ? 'Cercu' : (p.store_code || '');
       purchasesHtml += '<div style="padding:10px 12px;border:1px solid var(--bd);border-radius:8px;margin-bottom:6px;background:#fafafa">'+
@@ -733,42 +926,42 @@ function renderCustomerProfile(d, container){
       '<button onclick="closeCustomerProfile()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:var(--t2);padding:0 4px">×</button>'+
     '</div>'+
 
-    '<div style="display:inline-block;padding:6px 14px;background:'+tierColor+';color:#fff;border-radius:20px;font-weight:700;font-size:13px;margin-bottom:16px">'+tierIcon+' '+(c.buyer_tier||'Casual')+'</div>'+
+    '<div style="display:inline-block;padding:6px 14px;background:'+tierColor+';color:#fff;border-radius:20px;font-weight:700;font-size:13px;margin-bottom:16px">'+tierIcon+' '+tierLabel+'</div>'+
 
     lapsedBanner +
 
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:18px">'+
-      '<div style="padding:12px;background:#f1f5f9;border-radius:10px"><div style="font-size:11px;color:var(--t2)">Lifetime Spend</div><div style="font-size:18px;font-weight:800;color:#16a34a">'+spend+'</div></div>'+
-      '<div style="padding:12px;background:#f1f5f9;border-radius:10px"><div style="font-size:11px;color:var(--t2)">Total Orders</div><div style="font-size:18px;font-weight:800">'+(c.total_orders||0)+'</div></div>'+
-      '<div style="padding:12px;background:#f1f5f9;border-radius:10px"><div style="font-size:11px;color:var(--t2)">Avg Order</div><div style="font-size:18px;font-weight:800">$'+avgOrder.toLocaleString()+'</div></div>'+
-      '<div style="padding:12px;background:#f1f5f9;border-radius:10px"><div style="font-size:11px;color:var(--t2)">Last Purchase</div><div style="font-size:14px;font-weight:700">'+lastBuy+'</div></div>'+
+      '<div style="padding:12px;background:#f1f5f9;border-radius:10px"><div style="font-size:11px;color:var(--t2)">'+t('cp.lifetime_spend')+'</div><div style="font-size:18px;font-weight:800;color:#16a34a">'+spend+'</div></div>'+
+      '<div style="padding:12px;background:#f1f5f9;border-radius:10px"><div style="font-size:11px;color:var(--t2)">'+t('cp.total_orders')+'</div><div style="font-size:18px;font-weight:800">'+(c.total_orders||0)+'</div></div>'+
+      '<div style="padding:12px;background:#f1f5f9;border-radius:10px"><div style="font-size:11px;color:var(--t2)">'+t('cp.avg_order')+'</div><div style="font-size:18px;font-weight:800">$'+avgOrder.toLocaleString()+'</div></div>'+
+      '<div style="padding:12px;background:#f1f5f9;border-radius:10px"><div style="font-size:11px;color:var(--t2)">'+t('cp.last_purchase')+'</div><div style="font-size:14px;font-weight:700">'+lastBuy+'</div></div>'+
     '</div>'+
 
     (c.total_online_orders || c.total_walkin_orders ?
       '<div style="display:flex;gap:8px;margin-bottom:18px">'+
         '<div style="flex:1;padding:10px;border:1px solid #bbf7d0;background:#f0fdf4;border-radius:8px;font-size:12px">'+
-          '<b style="color:#16a34a">🛒 Online</b>: '+(c.total_online_orders||0)+' orders · $'+Math.round(c.total_online_mxn||0).toLocaleString()+
+          '<b style="color:#16a34a">🛒 '+t('cp.online')+'</b>: '+(c.total_online_orders||0)+' '+t('cp.orders')+' · $'+Math.round(c.total_online_mxn||0).toLocaleString()+
         '</div>'+
         '<div style="flex:1;padding:10px;border:1px solid #cbd5e1;background:#f8fafc;border-radius:8px;font-size:12px">'+
-          '<b style="color:#475569">🏪 Walk-in</b>: '+(c.total_walkin_orders||0)+' orders · $'+Math.round(c.total_walkin_mxn||0).toLocaleString()+
+          '<b style="color:#475569">🏪 '+t('cp.walkin')+'</b>: '+(c.total_walkin_orders||0)+' '+t('cp.orders')+' · $'+Math.round(c.total_walkin_mxn||0).toLocaleString()+
         '</div>'+
       '</div>' : '')+
 
-    '<h4 style="margin:0 0 10px;font-size:13px;color:var(--t2);text-transform:uppercase;letter-spacing:0.5px">Profile</h4>'+
+    '<h4 style="margin:0 0 10px;font-size:13px;color:var(--t2);text-transform:uppercase;letter-spacing:0.5px">'+t('cp.profile')+'</h4>'+
     '<div style="font-size:13px;line-height:1.8;color:var(--t1)">'+
-      (c.favorite_category ? '<div>👗 Favorite category: <b>'+c.favorite_category+'</b></div>' : '')+
-      (c.favorite_product ? '<div>🏷️ Favorite product: <b>'+c.favorite_product+'</b></div>' : '')+
-      (c.favorite_agent ? '<div>👤 Usually buys from: <b>'+c.favorite_agent+'</b></div>' : '')+
-      (c.favorite_store ? '<div>🏬 Favorite store: <b>'+(c.favorite_store==='TS0001'?'Leona Vicario':c.favorite_store==='TS0002'?'Cercu':c.favorite_store)+'</b></div>' : '')+
-      (c.favorite_payment ? '<div>💳 Usual payment: <b>'+c.favorite_payment+'</b></div>' : '')+
-      (c.top_lead_source ? '<div>📍 Lead source: <b>'+c.top_lead_source+'</b></div>' : '')+
+      (c.favorite_category ? '<div>👗 '+t('cp.fav_category')+': <b>'+c.favorite_category+'</b></div>' : '')+
+      (c.favorite_product ? '<div>🏷️ '+t('cp.fav_product')+': <b>'+c.favorite_product+'</b></div>' : '')+
+      (c.favorite_agent ? '<div>👤 '+t('cp.fav_agent')+': <b>'+c.favorite_agent+'</b></div>' : '')+
+      (c.favorite_store ? '<div>🏬 '+t('cp.fav_store')+': <b>'+(c.favorite_store==='TS0001'?'Leona Vicario':c.favorite_store==='TS0002'?'Cercu':c.favorite_store)+'</b></div>' : '')+
+      (c.favorite_payment ? '<div>💳 '+t('cp.fav_payment')+': <b>'+c.favorite_payment+'</b></div>' : '')+
+      (c.top_lead_source ? '<div>📍 '+t('cp.lead_source')+': <b>'+c.top_lead_source+'</b></div>' : '')+
     '</div>'+
 
     purchasesHtml +
 
     '<div style="margin-top:24px;display:flex;gap:8px">'+
-      '<a href="https://wa.me/'+waPh+'" target="_blank" style="flex:1;display:block;padding:12px;background:#25d366;color:#fff;text-align:center;text-decoration:none;border-radius:10px;font-weight:700;font-size:13px">💬 Open WhatsApp</a>'+
-      '<button onclick="closeCustomerProfile()" style="padding:12px 20px;background:transparent;border:1px solid var(--bd);border-radius:10px;cursor:pointer;font-weight:600">Close</button>'+
+      '<a href="https://wa.me/'+waPh+'" target="_blank" style="flex:1;display:block;padding:12px;background:#25d366;color:#fff;text-align:center;text-decoration:none;border-radius:10px;font-weight:700;font-size:13px">💬 '+t('btn.open_whatsapp')+'</a>'+
+      '<button onclick="closeCustomerProfile()" style="padding:12px 20px;background:transparent;border:1px solid var(--bd);border-radius:10px;cursor:pointer;font-weight:600">'+t('btn.close')+'</button>'+
     '</div>';
 }
 
@@ -910,7 +1103,8 @@ function loadState(){
     rp={};for(var k in data.rp)rp[k]=fix(data.rp[k]);
     wl=fix(data.wl);aq={};for(var a in data.aq)aq[a]=fix(data.aq[a]);
     var d=new Date(data.ts);
-    document.getElementById('ll').textContent='Last loaded: '+d.toLocaleString('es-MX',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+    var locale = LANG === 'es' ? 'es-MX' : 'en-US';
+    document.getElementById('ll').textContent=t('lbl.last_loaded')+' '+d.toLocaleString(locale,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
     return true;
   }catch(e){console.warn('Load failed:',e);return false}
 }
@@ -1053,7 +1247,8 @@ function buildCRM(cR,mR,vR){
   // Nancy gets: Jazmin's old non-customer chats + everything else not in Jazmin's or Yoana's list
   nancyCL=callList.filter(function(l){return !jazminSet[l.id]&&!yoanaSet[l.id]});
   saveState();
-  document.getElementById('ll').textContent='Loaded: '+new Date().toLocaleString('es-MX',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  var lbLoc = LANG === 'es' ? 'es-MX' : 'en-US';
+  document.getElementById('ll').textContent=t('lbl.last_loaded')+' '+new Date().toLocaleString(lbLoc,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
   rnMUI()}
 
 // ── LOG ──
@@ -1102,15 +1297,15 @@ function rnMUI(){document.getElementById('upSec').style.display='none';document.
     };
   }
   var ttl=Object.values(aq).reduce(function(s,a){return s+a.length},0);
-  document.getElementById('sR').innerHTML='<div class="sc cg"><div class="nm">'+(rp['Hot Cust']?rp['Hot Cust'].length:0)+'</div><div class="lb">Hot Customers</div></div><div class="sc co"><div class="nm">'+(rp['Hot Leads']?rp['Hot Leads'].length:0)+'</div><div class="lb">Hot Leads</div></div><div class="sc" style="background:#22c55e;color:#fff"><div class="nm">'+paidList.length+'</div><div class="lb">✅ Paid</div></div><div class="sc cr"><div class="nm">'+wl.length+'</div><div class="lb">🔍 Watchlist</div></div><div class="sc cgo"><div class="nm">'+ttl+'</div><div class="lb">Agent Tasks</div></div>';
+  document.getElementById('sR').innerHTML='<div class="sc cg"><div class="nm">'+(rp['Hot Cust']?rp['Hot Cust'].length:0)+'</div><div class="lb">'+t('kpi.hot_customers')+'</div></div><div class="sc co"><div class="nm">'+(rp['Hot Leads']?rp['Hot Leads'].length:0)+'</div><div class="lb">'+t('kpi.hot_leads')+'</div></div><div class="sc" style="background:#22c55e;color:#fff"><div class="nm">'+paidList.length+'</div><div class="lb">✅ '+t('kpi.paid')+'</div></div><div class="sc cr"><div class="nm">'+wl.length+'</div><div class="lb">🔍 '+t('kpi.watchlist')+'</div></div><div class="sc cgo"><div class="nm">'+ttl+'</div><div class="lb">'+t('kpi.agent_tasks')+'</div></div>';
   var clCnt=(typeof callList!=='undefined')?callList.length:0;
   var ncCnt=(typeof nancyCL!=='undefined')?nancyCL.length:0;
   var jcCnt=(typeof jazminCL!=='undefined')?jazminCL.length:0;
   var ycCnt=(typeof yoanaCL!=='undefined')?yoanaCL.length:0;
-  var nvs=[{id:'reports',i:'📊',l:'Reports'},{id:'customers',i:'💎',l:'Customers'},{id:'agents',i:'👥',l:'Agents',c:ttl},{id:'calllist',i:'📞',l:'Master Calls',c:clCnt},{id:'nancycl',i:'📞',l:'Nancy Calls',c:ncCnt},{id:'jazmincl',i:'📞',l:'Jazmin Calls',c:jcCnt},{id:'yoanacl',i:'📞',l:'Yoana Calls',c:ycCnt},{id:'performance',i:'📈',l:'Performance'},{id:'watchlist',i:'🔍',l:'Watchlist',c:wl.length},{id:'map',i:'🗺️',l:'Map'},{id:'log',i:'📝',l:'Log',c:alog.length}];
+  var nvs=[{id:'reports',i:'📊',l:t('nav.reports')},{id:'customers',i:'💎',l:t('nav.customers')},{id:'agents',i:'👥',l:t('nav.agents'),c:ttl},{id:'calllist',i:'📞',l:t('nav.master_calls'),c:clCnt},{id:'nancycl',i:'📞',l:t('nav.nancy_calls'),c:ncCnt},{id:'jazmincl',i:'📞',l:t('nav.jazmin_calls'),c:jcCnt},{id:'yoanacl',i:'📞',l:t('nav.yoana_calls'),c:ycCnt},{id:'performance',i:'📈',l:t('nav.performance')},{id:'watchlist',i:'🔍',l:t('nav.watchlist'),c:wl.length},{id:'map',i:'🗺️',l:t('nav.map')},{id:'log',i:'📝',l:t('nav.log'),c:alog.length}];
   // Admin-only: Upload Log tab
   if(typeof IS_ADMIN!=='undefined' && IS_ADMIN){
-    nvs.push({id:'uploadlog',i:'📜',l:'Upload Log'});
+    nvs.push({id:'uploadlog',i:'📜',l:t('nav.upload_log')});
   }
   document.getElementById('nB').innerHTML=nvs.map(function(n){return'<button class="nv '+(cNav===n.id?'a':'')+'" data-n="'+n.id+'">'+n.i+' '+n.l+(n.c!=null?'<span class="ct">'+n.c+'</span>':'')+'</button>'}).join('');
   document.querySelectorAll('.nv[data-n]').forEach(function(b){b.onclick=function(){cNav=b.dataset.n;document.querySelectorAll('.nv[data-n]').forEach(function(x){x.classList.remove('a')});b.classList.add('a');shP()}});shP()}
@@ -1118,7 +1313,21 @@ function rnMUI(){document.getElementById('upSec').style.display='none';document.
 function shP(){document.querySelectorAll('.pn').forEach(function(p){p.classList.remove('av')});var id='p'+cNav.charAt(0).toUpperCase()+cNav.slice(1);var el=document.getElementById(id);if(el)el.classList.add('av');if(cNav==='reports')rnRp();else if(cNav==='customers')rnCust();else if(cNav==='agents')rnAg();else if(cNav==='watchlist')rnWl();else if(cNav==='log')rnLg();else if(cNav==='performance')rnPf();else if(cNav==='calllist')rnCL();else if(cNav==='nancycl')rnNCL();else if(cNav==='jazmincl')rnJCL();else if(cNav==='yoanacl')rnYCL();else if(cNav==='map')rnMap();else if(cNav==='uploadlog')rnUL()}
 
 // ── REPORTS ──
-function rnRp(){var tbs=Object.keys(rp);if(!cRT)cRT=tbs[0];document.getElementById('rTabs').innerHTML=tbs.map(function(t){return'<button class="nv '+(cRT===t?'a':'')+'" data-t="'+t+'">'+t+'<span class="ct">'+(rp[t]?rp[t].length:0)+'</span></button>'}).join('');document.querySelectorAll('[data-t]').forEach(function(b){b.onclick=function(){cRT=b.dataset.t;sC=-1;document.querySelectorAll('[data-t]').forEach(function(x){x.classList.remove('a')});b.classList.add('a');rnRT()}});document.getElementById('rSch').oninput=rnRT;document.getElementById('exBtn').onclick=exXL;document.getElementById('nwBtn').onclick=function(){fl={c:null,m:null,v:null};document.getElementById('upSec').style.display='flex';document.getElementById('mainUI').style.display='none';document.getElementById('fSt').innerHTML='';rBn.disabled=true;rBn.textContent='▶ Build CRM';fIn.value=''};rnRT()}
+// Map internal report-tab keys → i18n keys
+var RP_LABEL_MAP = {
+  'Hot Cust':  'rp.hot_cust',
+  'Hot Leads': 'rp.hot_leads',
+  '✅ Paid':   'rp.paid',
+  'Returning': 'rp.returning',
+  'Cities':    'rp.cities',
+};
+function rpLabel(key){
+  var k = RP_LABEL_MAP[key];
+  if (k) return t(k);
+  return key; // fallback
+}
+
+function rnRp(){var tbs=Object.keys(rp);if(!cRT)cRT=tbs[0];document.getElementById('rTabs').innerHTML=tbs.map(function(rt){return'<button class="nv '+(cRT===rt?'a':'')+'" data-t="'+rt+'">'+rpLabel(rt)+'<span class="ct">'+(rp[rt]?rp[rt].length:0)+'</span></button>'}).join('');document.querySelectorAll('[data-t]').forEach(function(b){b.onclick=function(){cRT=b.dataset.t;sC=-1;document.querySelectorAll('[data-t]').forEach(function(x){x.classList.remove('a')});b.classList.add('a');rnRT()}});document.getElementById('rSch').oninput=rnRT;document.getElementById('rSch').placeholder=t('btn.search');document.getElementById('exBtn').onclick=exXL;document.getElementById('nwBtn').onclick=function(){fl={c:null,m:null,v:null};document.getElementById('upSec').style.display='flex';document.getElementById('mainUI').style.display='none';document.getElementById('fSt').innerHTML='';rBn.disabled=true;rBn.textContent='▶ Build CRM';fIn.value=''};rnRT()}
 
 function mkCell(c,l){var v=l[c.k];if(c.k==='_wa'){if(!l.ph)return'<td><span style="color:var(--t2);font-size:10px">—</span></td>';var msg=genWaMsg(l);return'<td><a href="'+waLink(l.ph,msg)+'" target="_blank" style="background:#25d366;color:#fff;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:700;text-decoration:none;white-space:nowrap">💬</a></td>'}if(c.k==='lc'){var lv=(v||'').toLowerCase();var bg='#e5e7eb';var fg='#374151';var lb=v||'—';if(l.paid){bg='#22c55e';fg='#fff';lb='✅ Paid'}else if(lv.includes('customer')||lv.includes('cliente')){bg='#dcfce7';fg='#166534';lb='👤 Customer'}else if(lv.includes('hot lead')){bg='#fee2e2';fg='#991b1b';lb='🔥 Hot Lead'}else if(lv.includes('new lead')){bg='#dbeafe';fg='#1e40af';lb='🆕 New Lead'}else if(lv.includes('cold')){bg='#f3f4f6';fg='#6b7280';lb='❄️ Cold'}else if(lv.includes('payment')||lv.includes('pago')){bg='#fef3c7';fg='#92400e';lb='💰 Payment'}else if(lv.includes('intento')){bg='#fef9c3';fg='#854d0e';lb='🛒 Intent'}else if(lv.includes('close')){bg='#f3e8ff';fg='#6b21a8';lb='✅ Closed'}return'<td><span style="background:'+bg+';color:'+fg+';padding:2px 8px;border-radius:5px;font-size:10px;font-weight:600;white-space:nowrap">'+lb+'</span></td>'}if(c.k==='nm')return'<td class="cn">'+(v||'—')+'</td>';if(c.k==='ph')return'<td class="cfn">'+(v||'')+'</td>';if(c.k==='sc'){var cl=v>=500?'sh2':v>=200?'sm2':'sl2';return'<td><span class="cs '+cl+'">'+v+'</span></td>'}if(c.k==='ws')return'<td>'+(v?'<span class="bd bw">YES</span>':'')+'</td>';if(c.k==='py')return'<td>'+(v?'<span class="bd bp">'+v+'</span>':'')+'</td>';if(c.k==='lt')return'<td>'+fD(v)+'</td>';if(c.k==='cy')return'<td>'+(v?'<span class="bd bc">'+v+'</span>':'')+'</td>';if(c.k==='ag')return'<td><span class="bd ba">'+(v||'—')+'</span></td>';if(c.k==='pr'){var pc=v==='P1'?'b1':v==='P2'?'b2':'b3';return'<td><span class="bd '+pc+'">'+v+'</span></td>'}if(c.k==='act')return'<td class="cm">'+(v||'')+'</td>';return'<td>'+(v!=null?v:'')+'</td>'}
 
