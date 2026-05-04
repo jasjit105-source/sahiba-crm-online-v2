@@ -73,7 +73,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--bd);vertical-align:middl
 <body>
 <div class="app">
 <div class="hdr"><h1>👗 Sahiba <span>CRM</span></h1><span class="dt" id="dtL"></span><span class="ll" id="ll"></span><div id="langToggle" style="margin-left:auto;display:flex;gap:0;background:#f1f5f9;border-radius:8px;padding:3px;border:1px solid var(--bd)"><button id="langEN" style="padding:5px 12px;border:none;background:transparent;font-size:12px;font-weight:700;cursor:pointer;border-radius:6px;color:var(--t2)">🇬🇧 EN</button><button id="langES" style="padding:5px 12px;border:none;background:transparent;font-size:12px;font-weight:700;cursor:pointer;border-radius:6px;color:var(--t2)">🇲🇽 ES</button></div></div>
-<div id="upSec">
+<div id="upSec" style="display:none">
 <div style="max-width:620px;margin:0 auto;display:flex;flex-direction:column;gap:18px">
 
 <div style="text-align:center;padding:14px 0 4px">
@@ -430,7 +430,10 @@ var IS_ADMIN=!VIEW_MODE;
 var APP_TOKEN='sahiba2026';// matches Netlify env var
 
 if(IS_ADMIN){
-  // Admin access — no password required (URL is private, kept by Jessie only)
+  // Admin: show upload landing immediately on load
+  // (autoloader below may swap to mainUI if data loads from DB)
+  var us=document.getElementById('upSec');
+  if(us)us.style.display='flex';
 }else{
   // Agent view: completely read-only. They never see:
   //   - The entire upload screen wrapper (#upSec — contains the upload card)
@@ -438,44 +441,44 @@ if(IS_ADMIN){
   //   - The "🔄 Re-Sync" button (admin-only refresh)
   //   - The Upload Log tab
   // They go straight to the dashboard with data auto-loaded.
+
+  // STEP 1 — IMMEDIATE (synchronous, before any paint):
+  // Force-hide upSec right now. No setTimeout.
+  var upS=document.getElementById('upSec');
+  if(upS)upS.style.display='none';
+  var muiNow=document.getElementById('mainUI');
+  if(muiNow)muiNow.style.display='block';
+
+  // STEP 2 — after DOM is ready: hide individual buttons + set agent name
   setTimeout(function(){
     var hide=function(sel){
       document.querySelectorAll(sel).forEach(function(el){el.style.display='none'});
     };
-    // CRITICAL: hide the wrapper (upSec), not just the card inside it.
-    // upSec is the entire admin landing screen.
-    hide('#upSec');
-    // Also hide individual controls just in case
+    hide('#upSec');           // hard hide again (defensive)
     hide('#uploadBtn');
     hide('#dz');
     hide('#fIn');
-    // Hide admin-only buttons inside the Reports tab
-    hide('#nwBtn');     // "📂 New Data"
-    hide('#rsBtn');     // "🔄 Re-Sync"
-    // Set agent name in title bar
+    hide('#nwBtn');           // "📂 New Data"
+    hide('#rsBtn');           // "🔄 Re-Sync"
     var name=VIEW_MODE.charAt(0).toUpperCase()+VIEW_MODE.slice(1);
     document.title='Sahiba CRM — '+name;
     var ll=document.getElementById('ll');
     if(ll)ll.innerHTML='👤 '+name+' • '+ll.textContent;
-    // Show the dashboard wrapper since admin landing is hidden
     var mui=document.getElementById('mainUI');
     if(mui)mui.style.display='block';
-    // Auto-load data immediately so they see the dashboard right away
-    if(typeof loadFromDB==='function'){
-      loadFromDB();
-    }
-  },150);
+  },10);
 
-  // Re-hide buttons every time the Reports tab re-renders (rnRp creates them fresh)
-  // Use MutationObserver as defensive backstop
+  // STEP 3 — re-hide on every Reports tab re-render (rnRp creates buttons fresh)
   var observer = new MutationObserver(function(){
     var nw=document.getElementById('nwBtn'); if(nw)nw.style.display='none';
     var rs=document.getElementById('rsBtn'); if(rs)rs.style.display='none';
+    var us=document.getElementById('upSec'); if(us&&us.style.display!=='none')us.style.display='none';
   });
   setTimeout(function(){
     var rTbl=document.getElementById('pReports');
     if(rTbl)observer.observe(rTbl,{childList:true,subtree:true});
-  },500);
+    document.body && observer.observe(document.body,{childList:true,subtree:false});
+  },200);
 }
 
 // Wrapper for fetch that adds auth on admin endpoints
@@ -1154,10 +1157,20 @@ function loadState(){
 if(loadState()&&Object.keys(rp).length>0){rnMUI()}else{
   // Auto-load from database
   (async function(){
+    // Helper that ONLY shows upSec for admin. For agents, never show it.
+    function showUpSecIfAdmin(){
+      if(IS_ADMIN){
+        document.getElementById('upSec').style.display='flex';
+      }else{
+        document.getElementById('upSec').style.display='none';
+        var mui=document.getElementById('mainUI');
+        if(mui)mui.style.display='block';
+      }
+    }
     try{
-      document.getElementById('upSec').style.display='flex';
+      showUpSecIfAdmin();
       var st=document.getElementById('syncSt');
-      st.innerHTML='📡 Loading...';
+      if(st)st.innerHTML='📡 Loading...';
       var d2=parseInt((document.getElementById('daysSel')||{}).value)||7;
       var r=await fetch(API_BASE+'/data?days='+d2);
       var data=await r.json();
@@ -1168,14 +1181,30 @@ if(loadState()&&Object.keys(rp).length>0){rnMUI()}else{
         var mRows=csvToObjects(data.messagesCSV||'');
         _lastC=cRows;_lastM=mRows;_lastV=[];
         buildCRM(cRows,mRows,[]);
-        st.innerHTML='';
+        if(st)st.innerHTML='';
       }else{
-        st.innerHTML='';
-        document.getElementById('upSec').style.display='flex';
+        if(st)st.innerHTML='';
+        showUpSecIfAdmin();
+        if(!IS_ADMIN){
+          // Agent: show a friendly empty state in main UI instead of upload screen
+          var mui=document.getElementById('mainUI');
+          if(mui){
+            mui.style.display='block';
+            mui.innerHTML='<div style="padding:60px 20px;text-align:center;color:var(--t2)"><h2 style="font-size:18px;color:var(--t1);margin-bottom:8px">⏳ Cargando...</h2><p style="font-size:13px">Si no aparecen los datos en unos segundos, avisa a Jessie.</p></div>';
+          }
+        }
       }
     }catch(e){
-      document.getElementById('upSec').style.display='flex';
-      document.getElementById('syncSt').innerHTML='';
+      var st2=document.getElementById('syncSt');
+      if(st2)st2.innerHTML='';
+      showUpSecIfAdmin();
+      if(!IS_ADMIN){
+        var mui=document.getElementById('mainUI');
+        if(mui){
+          mui.style.display='block';
+          mui.innerHTML='<div style="padding:60px 20px;text-align:center;color:var(--t2)"><h2 style="font-size:18px;color:var(--t1);margin-bottom:8px">⚠️ Error de conexión</h2><p style="font-size:13px">No se pudo cargar. Avisa a Jessie.</p></div>';
+        }
+      }
     }
   })();
 }
