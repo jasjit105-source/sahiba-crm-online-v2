@@ -118,10 +118,10 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--bd);vertical-align:middl
 <label style="font-size:12px;font-weight:600;color:var(--t2)">📅 Date window:</label>
 <select id="daysSel" style="padding:6px 12px;border-radius:8px;border:1px solid var(--bd);font-size:13px;font-weight:700;background:var(--s);cursor:pointer;flex:1">
 <option value="1">Last 1 day</option>
-<option value="2" selected>Last 2 days</option>
+<option value="2">Last 2 days</option>
 <option value="3">Last 3 days</option>
 <option value="5">Last 5 days</option>
-<option value="7">Last 7 days</option>
+<option value="7" selected>Last 7 days</option>
 <option value="10">Last 10 days</option>
 <option value="14">Last 14 days</option>
 <option value="30">Last 30 days</option>
@@ -183,7 +183,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--bd);vertical-align:middl
 <span style="font-size:12px;font-weight:600;color:var(--t2)">📅 <span data-i18n="win.window">Window:</span></span>
 <select id="daysSelMain" style="padding:4px 10px;border-radius:6px;border:1px solid var(--bd);font-size:13px;font-weight:700;background:var(--s);color:var(--t1);cursor:pointer">
 <option value="1">1 day</option>
-<option value="2" selected>2 days</option>
+<option value="2">2 days</option>
 <option value="3">3 days</option>
 <option value="5">5 days</option>
 <option value="7">7 days</option>
@@ -549,24 +549,79 @@ function bindCheckIns(container){
     };
   });
 }
-// Load pre-synced data from Google Sheets (instant — syncs every 4 hours)
+// ══════ SHARED CSV PARSE HELPERS ══════
+// Hoisted out of loadFromDB / agent autoloader so both can share them.
+function fullParseCSV(txt){var results=[],row=[],field='',inQ=false;for(var i=0;i<txt.length;i++){var c=txt[i];if(c==='"'){if(inQ&&txt[i+1]==='"'){field+='"';i++}else{inQ=!inQ}}else if(c===','&&!inQ){row.push(field);field=''}else if((c==='\n'||(c==='\r'&&txt[i+1]==='\n'))&&!inQ){if(c==='\r')i++;row.push(field);results.push(row);row=[];field=''}else{field+=c}}if(field||row.length)row.push(field);if(row.length)results.push(row);return results}
+function csvToObjects(txt){var rows=fullParseCSV(txt);if(rows.length<2)return[];var hdr=rows[0];var objs=[];for(var i=1;i<rows.length;i++){var o={};for(var j=0;j<hdr.length;j++){o[hdr[j]]=rows[i][j]||''}objs.push(o)}return objs}
+
+// ══════ PAGINATED MESSAGE LOADER ══════
+// /api/data only returns contacts now — messages are fetched in chunks
+// here to stay under Netlify's 6 MB cap regardless of window size.
+//
+// Returns an array of message objects in the SAME shape the dashboard
+// already expects (keys: 'Date & Time', 'Contact ID', 'Message Type',
+// 'Content Type', 'Content'), so buildCRM() needs no changes.
+async function fetchAllMessagesPaged(days, onProgress){
+  var all=[];
+  var cursorDt=null,cursorId=null;
+  var page=0;
+  // Hard upper bound to prevent runaway loops if server misbehaves.
+  // 50 pages × 5000 rows = 250k messages max — well above any realistic window.
+  var MAX_PAGES=50;
+  while(page<MAX_PAGES){
+    var qs='days='+days+'&limit=5000';
+    if(cursorDt&&cursorId){
+      qs+='&cursorDt='+encodeURIComponent(cursorDt)+'&cursorId='+encodeURIComponent(cursorId);
+    }
+    var resp=await fetch(API_BASE+'/messages?'+qs);
+    if(!resp.ok)throw new Error('Messages fetch failed: HTTP '+resp.status);
+    var raw=await resp.text();
+    if(raw.charAt(0)==='<')throw new Error('Messages fetch returned HTML (likely server crash)');
+    var data;
+    try{data=JSON.parse(raw)}catch(e){throw new Error('Messages fetch returned non-JSON: '+raw.slice(0,200))}
+    if(data.status!=='ok')throw new Error('Messages fetch error: '+(data.error||'unknown'));
+    // Convert slim {dt,ci,mt,ct,cn} rows to the shape buildCRM expects.
+    for(var i=0;i<data.messages.length;i++){
+      var m=data.messages[i];
+      all.push({
+        'Date & Time':m.dt,
+        'Contact ID':m.ci,
+        'Message Type':m.mt,
+        'Content Type':m.ct,
+        'Content':m.cn,
+      });
+    }
+    if(typeof onProgress==='function')onProgress(all.length);
+    if(!data.hasMore||!data.nextCursor)break;
+    cursorDt=data.nextCursor.dt;
+    cursorId=data.nextCursor.id;
+    page++;
+  }
+  return all;
+}
+
+// Load pre-synced data from Neon (contacts + paginated messages)
 async function loadFromDB(){
   var st=document.getElementById('syncSt'),btn=document.getElementById('loadCloudBtn');
   btn.disabled=true;btn.textContent='⏳ Loading...';
   st.innerHTML='📡 Loading data from database...';
   try{
-    var days=parseInt((document.getElementById('daysSel')||{}).value)||2;
+    var days=parseInt((document.getElementById('daysSel')||{}).value)||7;
+    // Phase 1: contacts + summary
     var r=await fetch(API_BASE+'/data?days='+days);
     var data=await r.json();
     if(data.status!=='ok'||!data.contactsCSV){
       st.innerHTML='⚠️ No data yet. Upload Contacts + Messages CSVs to get started.';
       btn.textContent='🔄 Load Data';btn.disabled=false;return;
     }
-    st.innerHTML='📊 Parsing '+data.contactCount+' contacts, '+data.messageCount+' messages...';
-    function fullParseCSV(txt){var results=[],row=[],field='',inQ=false;for(var i=0;i<txt.length;i++){var c=txt[i];if(c==='"'){if(inQ&&txt[i+1]==='"'){field+='"';i++}else{inQ=!inQ}}else if(c===','&&!inQ){row.push(field);field=''}else if((c==='\n'||(c==='\r'&&txt[i+1]==='\n'))&&!inQ){if(c==='\r')i++;row.push(field);results.push(row);row=[];field=''}else{field+=c}}if(field||row.length)row.push(field);if(row.length)results.push(row);return results}
-    function csvToObjects(txt){var rows=fullParseCSV(txt);if(rows.length<2)return[];var hdr=rows[0];var objs=[];for(var i=1;i<rows.length;i++){var o={};for(var j=0;j<hdr.length;j++){o[hdr[j]]=rows[i][j]||''}objs.push(o)}return objs}
+    var totalMsgs=data.messageCount||0;
+    st.innerHTML='📊 Loading '+data.contactCount+' contacts, '+totalMsgs+' messages...';
     var cRows=csvToObjects(data.contactsCSV||'');
-    var mRows=csvToObjects(data.messagesCSV||'');
+    // Phase 2: stream messages in pages
+    var mRows=await fetchAllMessagesPaged(days,function(soFar){
+      var pct=totalMsgs?Math.min(100,Math.round(soFar/totalMsgs*100)):0;
+      st.innerHTML='📊 Loading messages '+soFar+' / '+totalMsgs+' ('+pct+'%)...';
+    });
     if(typeof _lastC!=='undefined'){_lastC=cRows;_lastM=mRows;_lastV=[]}
     buildCRM(cRows,mRows,[]);
     var newBadge=data.newContactCount>0?' | <span style="color:var(--or);font-weight:700">🆕 '+data.newContactCount+' new contacts</span>':'';
@@ -1121,7 +1176,7 @@ if(document.getElementById('syncSalesBtn')){
 const LR={"222": ["Puebla", "Puebla"], "223": ["Puebla", "Puebla"], "224": ["Puebla", "Puebla"], "225": ["Xalapa", "Veracruz"], "226": ["Xalapa", "Veracruz"], "227": ["Puebla", "Puebla"], "228": ["Xalapa", "Veracruz"], "229": ["Xalapa", "Veracruz"], "231": ["Puebla", "Puebla"], "232": ["Xalapa", "Veracruz"], "233": ["Puebla", "Puebla"], "235": ["Xalapa", "Veracruz"], "236": ["Puebla", "Puebla"], "237": ["Puebla", "Puebla"], "238": ["Puebla", "Puebla"], "241": ["Tlaxcala", "Tlaxcala"], "243": ["Puebla", "Puebla"], "244": ["Puebla", "Puebla"], "245": ["Puebla", "Puebla"], "246": ["Tlaxcala", "Tlaxcala"], "247": ["Tlaxcala", "Tlaxcala"], "248": ["Puebla", "Puebla"], "249": ["Puebla", "Puebla"], "271": ["Xalapa", "Veracruz"], "272": ["Xalapa", "Veracruz"], "273": ["Xalapa", "Veracruz"], "274": ["Oaxaca de Ju�rez", "Oaxaca"], "275": ["Puebla", "Puebla"], "276": ["Puebla", "Puebla"], "278": ["Xalapa", "Veracruz"], "279": ["Xalapa", "Veracruz"], "281": ["Oaxaca de Ju�rez", "Oaxaca"], "282": ["Xalapa", "Veracruz"], "283": ["Xalapa", "Veracruz"], "284": ["Xalapa", "Veracruz"], "285": ["Xalapa", "Veracruz"], "287": ["Oaxaca de Ju�rez", "Oaxaca"], "288": ["Xalapa", "Veracruz"], "294": ["Xalapa", "Veracruz"], "296": ["Xalapa", "Veracruz"], "297": ["Xalapa", "Veracruz"], "311": ["Tepic", "Nayarit"], "312": ["Colima", "Colima"], "313": ["Colima", "Colima"], "314": ["Colima", "Colima"], "315": ["Guadalajara", "Jalisco"], "316": ["Guadalajara", "Jalisco"], "317": ["Guadalajara", "Jalisco"], "319": ["Tepic", "Nayarit"], "321": ["Guadalajara", "Jalisco"], "322": ["Guadalajara", "Jalisco"], "323": ["Tepic", "Nayarit"], "324": ["Tepic", "Nayarit"], "325": ["Tepic", "Nayarit"], "326": ["Guadalajara", "Jalisco"], "327": ["Tepic", "Nayarit"], "328": ["Morelia", "Michoacn"], "329": ["Tepic", "Nayarit"], "33": ["Guadalajara", "Jalisco"], "341": ["Guadalajara", "Jalisco"], "342": ["Guadalajara", "Jalisco"], "343": ["Guadalajara", "Jalisco"], "344": ["Guadalajara", "Jalisco"], "345": ["Guadalajara", "Jalisco"], "346": ["Zacatecas", "Zacatecas"], "347": ["Guadalajara", "Jalisco"], "348": ["Guadalajara", "Jalisco"], "349": ["Guadalajara", "Jalisco"], "351": ["Morelia", "Michoacn"], "352": ["Morelia", "Michoacn"], "353": ["Morelia", "Michoacn"], "354": ["Morelia", "Michoacn"], "355": ["Morelia", "Michoacn"], "356": ["Morelia", "Michoacn"], "357": ["Guadalajara", "Jalisco"], "358": ["Guadalajara", "Jalisco"], "359": ["Morelia", "Michoacn"], "371": ["Guadalajara", "Jalisco"], "372": ["Guadalajara", "Jalisco"], "373": ["Guadalajara", "Jalisco"], "374": ["Guadalajara", "Jalisco"], "375": ["Guadalajara", "Jalisco"], "376": ["Guadalajara", "Jalisco"], "377": ["Guadalajara", "Jalisco"], "378": ["Guadalajara", "Jalisco"], "381": ["Morelia", "Michoacn"], "382": ["Guadalajara", "Jalisco"], "383": ["Morelia", "Michoacn"], "384": ["Guadalajara", "Jalisco"], "385": ["Guadalajara", "Jalisco"], "386": ["Guadalajara", "Jalisco"], "387": ["Guadalajara", "Jalisco"], "388": ["Guadalajara", "Jalisco"], "389": ["Tepic", "Nayarit"], "391": ["Guadalajara", "Jalisco"], "392": ["Guadalajara", "Jalisco"], "393": ["Guadalajara", "Jalisco"], "394": ["Morelia", "Michoacn"], "395": ["Guadalajara", "Jalisco"], "411": ["Guanajuato", "Guanajuato"], "412": ["Guanajuato", "Guanajuato"], "413": ["Guanajuato", "Guanajuato"], "414": ["Santiago de Queretaror", "Querétaro"], "415": ["Guanajuato", "Guanajuato"], "417": ["Guanajuato", "Guanajuato"], "418": ["Guanajuato", "Guanajuato"], "419": ["Guanajuato", "Guanajuato"], "421": ["Guanajuato", "Guanajuato"], "422": ["Morelia", "Michoacn"], "423": ["Morelia", "Michoacn"], "424": ["Morelia", "Michoacn"], "425": ["Morelia", "Michoacn"], "426": ["Morelia", "Michoacn"], "427": ["Santiago de Queretaror", "Querétaro"], "428": ["Guanajuato", "Guanajuato"], "429": ["Guanajuato", "Guanajuato"], "431": ["Guadalajara", "Jalisco"], "432": ["Guanajuato", "Guanajuato"], "433": ["Zacatecas", "Zacatecas"], "434": ["Morelia", "Michoacn"], "435": ["Morelia", "Michoacn"], "436": ["Morelia", "Michoacn"], "437": ["Guadalajara", "Jalisco"], "438": ["Morelia", "Michoacn"], "441": ["Santiago de Queretaror", "Querétaro"], "442": ["Santiago de Queretaror", "Querétaro"], "443": ["Morelia", "Michoacn"], "444": ["San Luis Potos", "San Luis Potos"], "445": ["Guanajuato", "Guanajuato"], "447": ["Morelia", "Michoacn"], "448": ["Santiago de Queretaror", "Querétaro"], "449": ["Aguascalientes", "Aguascalientes"], "451": ["Morelia", "Michoacn"], "452": ["Morelia", "Michoacn"], "453": ["Morelia", "Michoacn"], "454": ["Morelia", "Michoacn"], "455": ["Morelia", "Michoacn"], "456": ["Guanajuato", "Guanajuato"], "457": ["Zacatecas", "Zacatecas"], "458": ["Zacatecas", "Zacatecas"], "459": ["Morelia", "Michoacn"], "461": ["Guanajuato", "Guanajuato"], "462": ["Guanajuato", "Guanajuato"], "463": ["Zacatecas", "Zacatecas"], "464": ["Guanajuato", "Guanajuato"], "465": ["Aguascalientes", "Aguascalientes"], "466": ["Guanajuato", "Guanajuato"], "467": ["Zacatecas", "Zacatecas"], "468": ["Guanajuato", "Guanajuato"], "469": ["Guanajuato", "Guanajuato"], "471": ["Morelia", "Michoacn"], "472": ["Guanajuato", "Guanajuato"], "473": ["Guanajuato", "Guanajuato"], "474": ["Guadalajara", "Jalisco"], "475": ["Guadalajara", "Jalisco"], "476": ["Guanajuato", "Guanajuato"], "477": ["Guanajuato", "Guanajuato"], "478": ["Zacatecas", "Zacatecas"], "481": ["San Luis Potos", "San Luis Potos"], "482": ["San Luis Potos", "San Luis Potos"], "483": ["San Luis Potos", "San Luis Potos"], "485": ["San Luis Potos", "San Luis Potos"], "486": ["San Luis Potos", "San Luis Potos"], "487": ["San Luis Potos", "San Luis Potos"], "488": ["San Luis Potos", "San Luis Potos"], "489": ["San Luis Potos", "San Luis Potos"], "492": ["Zacatecas", "Zacatecas"], "493": ["Zacatecas", "Zacatecas"], "494": ["Zacatecas", "Zacatecas"], "495": ["Aguascalientes", "Aguascalientes"], "496": ["Zacatecas", "Zacatecas"], "498": ["Zacatecas", "Zacatecas"], "499": ["Zacatecas", "Zacatecas"], "55": ["Toluca de Lerdo", "Estado de México"], "588": ["Toluca de Lerdo", "Estado de México"], "591": ["Toluca de Lerdo", "Estado de México"], "592": ["Toluca de Lerdo", "Estado de México"], "593": ["Toluca de Lerdo", "Estado de México"], "594": ["Toluca de Lerdo", "Estado de México"], "595": ["Toluca de Lerdo", "Estado de México"], "596": ["Toluca de Lerdo", "Estado de México"], "597": ["Toluca de Lerdo", "Estado de México"], "599": ["Toluca de Lerdo", "Estado de México"], "612": ["La Paz", "Baja California Sur"], "613": ["La Paz", "Baja California Sur"], "614": ["Chihuahua", "Chihuahua"], "615": ["La Paz", "Baja California Sur"], "616": ["Mexicali", "Baja California"], "618": ["Durango", "Durango"], "621": ["Chihuahua", "Chihuahua"], "622": ["Hermosillo", "Sonora"], "623": ["Hermosillo", "Sonora"], "624": ["La Paz", "Baja California Sur"], "625": ["Chihuahua", "Chihuahua"], "626": ["Chihuahua", "Chihuahua"], "627": ["Chihuahua", "Chihuahua"], "628": ["Chihuahua", "Chihuahua"], "629": ["Chihuahua", "Chihuahua"], "631": ["Hermosillo", "Sonora"], "632": ["Hermosillo", "Sonora"], "633": ["Hermosillo", "Sonora"], "634": ["Hermosillo", "Sonora"], "635": ["Chihuahua", "Chihuahua"], "636": ["Chihuahua", "Chihuahua"], "637": ["Hermosillo", "Sonora"], "638": ["Hermosillo", "Sonora"], "639": ["Chihuahua", "Chihuahua"], "641": ["Hermosillo", "Sonora"], "642": ["Hermosillo", "Sonora"], "643": ["Hermosillo", "Sonora"], "644": ["Hermosillo", "Sonora"], "645": ["Hermosillo", "Sonora"], "646": ["Mexicali", "Baja California"], "647": ["Hermosillo", "Sonora"], "648": ["Chihuahua", "Chihuahua"], "649": ["Chihuahua", "Chihuahua"], "651": ["Hermosillo", "Sonora"], "652": ["Chihuahua", "Chihuahua"], "653": ["Hermosillo", "Sonora"], "656": ["Chihuahua", "Chihuahua"], "658": ["Mexicali", "Baja California"], "659": ["Chihuahua", "Chihuahua"], "661": ["Mexicali", "Baja California"], "662": ["Hermosillo", "Sonora"], "664": ["Mexicali", "Baja California"], "665": ["Mexicali", "Baja California"], "667": ["Culiacan Rosales", "Sinaloa"], "668": ["Culiacan Rosales", "Sinaloa"], "669": ["Culiacan Rosales", "Sinaloa"], "671": ["Durango", "Durango"], "672": ["Culiacan Rosales", "Sinaloa"], "673": ["Culiacan Rosales", "Sinaloa"], "674": ["Durango", "Durango"], "675": ["Durango", "Durango"], "676": ["Durango", "Durango"], "677": ["Durango", "Durango"], "686": ["Mexicali", "Baja California"], "687": ["Culiacan Rosales", "Sinaloa"], "694": ["Culiacan Rosales", "Sinaloa"], "695": ["Culiacan Rosales", "Sinaloa"], "696": ["Culiacan Rosales", "Sinaloa"], "697": ["Culiacan Rosales", "Sinaloa"], "698": ["Culiacan Rosales", "Sinaloa"], "711": ["Toluca de Lerdo", "Estado de México"], "712": ["Toluca de Lerdo", "Estado de México"], "713": ["Toluca de Lerdo", "Estado de México"], "714": ["Toluca de Lerdo", "Estado de México"], "715": ["Morelia", "Michoacn"], "716": ["Toluca de Lerdo", "Estado de México"], "717": ["Toluca de Lerdo", "Estado de México"], "718": ["Toluca de Lerdo", "Estado de México"], "719": ["Toluca de Lerdo", "Estado de México"], "721": ["Toluca de Lerdo", "Estado de México"], "722": ["Toluca de Lerdo", "Estado de México"], "723": ["Toluca de Lerdo", "Estado de México"], "724": ["Toluca de Lerdo", "Estado de México"], "725": ["Toluca de Lerdo", "Estado de México"], "726": ["Toluca de Lerdo", "Estado de México"], "727": ["Chilpancingo de los Bravo", "Guerrero"], "728": ["Toluca de Lerdo", "Estado de México"], "731": ["Cuernavaca", "Morelos"], "732": ["Chilpancingo de los Bravo", "Guerrero"], "733": ["Chilpancingo de los Bravo", "Guerrero"], "734": ["Cuernavaca", "Morelos"], "735": ["Cuernavaca", "Morelos"], "736": ["Chilpancingo de los Bravo", "Guerrero"], "737": ["Cuernavaca", "Morelos"], "738": ["Pachuca de Soto", "Hidalgo"], "739": ["Cuernavaca", "Morelos"], "741": ["Chilpancingo de los Bravo", "Guerrero"], "742": ["Chilpancingo de los Bravo", "Guerrero"], "743": ["Pachuca de Soto", "Hidalgo"], "744": ["Chilpancingo de los Bravo", "Guerrero"], "745": ["Chilpancingo de los Bravo", "Guerrero"], "746": ["Xalapa", "Veracruz"], "747": ["Chilpancingo de los Bravo", "Guerrero"], "748": ["Pachuca de Soto", "Hidalgo"], "749": ["Tlaxcala", "Tlaxcala"], "751": ["Cuernavaca", "Morelos"], "753": ["Morelia", "Michoacn"], "754": ["Chilpancingo de los Bravo", "Guerrero"], "755": ["Chilpancingo de los Bravo", "Guerrero"], "756": ["Chilpancingo de los Bravo", "Guerrero"], "757": ["Chilpancingo de los Bravo", "Guerrero"], "758": ["Chilpancingo de los Bravo", "Guerrero"], "759": ["Pachuca de Soto", "Hidalgo"], "761": ["Pachuca de Soto", "Hidalgo"], "762": ["Chilpancingo de los Bravo", "Guerrero"], "763": ["Pachuca de Soto", "Hidalgo"], "764": ["Puebla", "Puebla"], "765": ["Xalapa", "Veracruz"], "766": ["Xalapa", "Veracruz"], "767": ["Chilpancingo de los Bravo", "Guerrero"], "768": ["Xalapa", "Veracruz"], "769": ["Cuernavaca", "Morelos"], "771": ["Pachuca de Soto", "Hidalgo"], "772": ["Pachuca de Soto", "Hidalgo"], "773": ["Pachuca de Soto", "Hidalgo"], "774": ["Pachuca de Soto", "Hidalgo"], "775": ["Pachuca de Soto", "Hidalgo"], "776": ["Puebla", "Puebla"], "777": ["Cuernavaca", "Morelos"], "778": ["Pachuca de Soto", "Hidalgo"], "779": ["Pachuca de Soto", "Hidalgo"], "781": ["Chilpancingo de los Bravo", "Guerrero"], "782": ["Xalapa", "Veracruz"], "783": ["Xalapa", "Veracruz"], "784": ["Xalapa", "Veracruz"], "785": ["Xalapa", "Veracruz"], "786": ["Morelia", "Michoacn"], "789": ["Xalapa", "Veracruz"], "791": ["Pachuca de Soto", "Hidalgo"], "797": ["Puebla", "Puebla"], "81": ["Monterrey", "Nuevo León"], "821": ["Monterrey", "Nuevo León"], "823": ["Monterrey", "Nuevo León"], "824": ["Monterrey", "Nuevo León"], "825": ["Monterrey", "Nuevo León"], "826": ["Monterrey", "Nuevo León"], "828": ["Monterrey", "Nuevo León"], "829": ["Monterrey", "Nuevo León"], "831": ["Ciudad Victoria", "Tamaulipas"], "832": ["Ciudad Victoria", "Tamaulipas"], "833": ["Xalapa", "Veracruz"], "834": ["Ciudad Victoria", "Tamaulipas"], "835": ["Ciudad Victoria", "Tamaulipas"], "836": ["Ciudad Victoria", "Tamaulipas"], "841": ["Ciudad Victoria", "Tamaulipas"], "842": ["Zacatecas", "Zacatecas"], "844": ["Saltillo", "Coahuila"], "845": ["San Luis Potos", "San Luis Potosí"], "846": ["Xalapa", "Veracruz"], "861": ["Saltillo", "Coahuila"], "862": ["Saltillo", "Coahuila"], "864": ["Saltillo", "Coahuila"], "866": ["Saltillo", "Coahuila"], "867": ["Monterrey", "Nuevo León"], "868": ["Ciudad Victoria", "Tamaulipas"], "869": ["Saltillo", "Coahuila"], "871": ["Durango", "Durango"], "872": ["Saltillo", "Coahuila"], "873": ["Monterrey", "Nuevo León"], "877": ["Saltillo", "Coahuila"], "878": ["Saltillo", "Coahuila"], "891": ["Ciudad Victoria", "Tamaulipas"], "892": ["Monterrey", "Nuevo León"], "894": ["Ciudad Victoria", "Tamaulipas"], "897": ["Ciudad Victoria", "Tamaulipas"], "899": ["Ciudad Victoria", "Tamaulipas"], "913": ["Villahermosa", "Tabasco"], "914": ["Villahermosa", "Tabasco"], "916": ["Tuxtla Guti�rrez", "Chiapas"], "917": ["Villahermosa", "Tabasco"], "918": ["Tuxtla Guti�rrez", "Chiapas"], "919": ["Tuxtla Guti�rrez", "Chiapas"], "921": ["Xalapa", "Veracruz"], "922": ["Xalapa", "Veracruz"], "923": ["Xalapa", "Veracruz"], "924": ["Xalapa", "Veracruz"], "932": ["Villahermosa", "Tabasco"], "933": ["Villahermosa", "Tabasco"], "934": ["Villahermosa", "Tabasco"], "936": ["Villahermosa", "Tabasco"], "937": ["Villahermosa", "Tabasco"], "938": ["San Francisco de Campeche", "Campeche"], "951": ["Oaxaca de Ju�rez", "Oaxaca"], "953": ["Oaxaca de Ju�rez", "Oaxaca"], "954": ["Oaxaca de Ju�rez", "Oaxaca"], "958": ["Oaxaca de Ju�rez", "Oaxaca"], "961": ["Tuxtla Guti�rrez", "Chiapas"], "962": ["Tuxtla Guti�rrez", "Chiapas"], "963": ["Tuxtla Guti�rrez", "Chiapas"], "964": ["Tuxtla Guti�rrez", "Chiapas"], "965": ["Tuxtla Guti�rrez", "Chiapas"], "966": ["Tuxtla Guti�rrez", "Chiapas"], "967": ["Tuxtla Guti�rrez", "Chiapas"], "968": ["Tuxtla Guti�rrez", "Chiapas"], "969": ["Merida", "Yucatan"], "971": ["Oaxaca de Ju�rez", "Oaxaca"], "972": ["Oaxaca de Ju�rez", "Oaxaca"], "981": ["San Francisco de Campeche", "Campeche"], "982": ["San Francisco de Campeche", "Campeche"], "983": ["Chetumal", "Quintana Roo"], "984": ["Chetumal", "Quintana Roo"], "985": ["Merida", "Yucatan"], "986": ["Merida", "Yucatan"], "987": ["Chetumal", "Quintana Roo"], "988": ["Merida", "Yucatan"], "991": ["Merida", "Yucatan"], "992": ["Tuxtla Guti�rrez", "Chiapas"], "993": ["Villahermosa", "Tabasco"], "994": ["Oaxaca de Ju�rez", "Oaxaca"], "995": ["Oaxaca de Ju�rez", "Oaxaca"], "996": ["San Francisco de Campeche", "Campeche"], "997": ["Merida", "Yucatan"], "998": ["Chetumal", "Quintana Roo"], "999": ["Merida", "Yucatan"]};
 const AG={'asesorce3@sahiba.com':{n:'Jazmin',wa:'+525546032968'},'sahibaleona@gmail.com':{n:'Nancy',wa:'+525562145834'},'ymsahiba78@gmail.com':{n:'Yoana',wa:'+525537949874'}};
 const AN=['Jazmin','Nancy','Yoana'];
-var WD=2,SV={WI:300,IIO:250,IIE:80,IOE:15,PD:300};
+var WD=7,SV={WI:300,IIO:250,IIE:80,IOE:15,PD:300};
 const LM={};for(const[k,v]of Object.entries(LR))LM[k]={c:v[0],s:v[1]};
 const L3=new Set(Object.keys(LM).filter(k=>k.length===3)),L2=new Set(Object.keys(LM).filter(k=>k.length===2));
 
@@ -1171,14 +1226,19 @@ if(loadState()&&Object.keys(rp).length>0){rnMUI()}else{
       showUpSecIfAdmin();
       var st=document.getElementById('syncSt');
       if(st)st.innerHTML='📡 Loading...';
-      var d2=parseInt((document.getElementById('daysSel')||{}).value)||2;
+      var d2=parseInt((document.getElementById('daysSel')||{}).value)||7;
+      // Phase 1: contacts + summary
       var r=await fetch(API_BASE+'/data?days='+d2);
       var data=await r.json();
       if(data.status==='ok'&&data.contactsCSV&&data.contactCount>0){
-        function fullParseCSV(txt){var results=[],row=[],field='',inQ=false;for(var i=0;i<txt.length;i++){var c=txt[i];if(c==='"'){if(inQ&&txt[i+1]==='"'){field+='"';i++}else{inQ=!inQ}}else if(c===','&&!inQ){row.push(field);field=''}else if((c==='\n'||(c==='\r'&&txt[i+1]==='\n'))&&!inQ){if(c==='\r')i++;row.push(field);results.push(row);row=[];field=''}else{field+=c}}if(field||row.length)row.push(field);if(row.length)results.push(row);return results}
-        function csvToObjects(txt){var rows=fullParseCSV(txt);if(rows.length<2)return[];var hdr=rows[0];var objs=[];for(var i=1;i<rows.length;i++){var o={};for(var j=0;j<hdr.length;j++){o[hdr[j]]=rows[i][j]||''}objs.push(o)}return objs}
+        var totalMsgs=data.messageCount||0;
+        if(st)st.innerHTML='📊 Loading '+totalMsgs+' messages...';
         var cRows=csvToObjects(data.contactsCSV||'');
-        var mRows=csvToObjects(data.messagesCSV||'');
+        // Phase 2: stream messages in pages
+        var mRows=await fetchAllMessagesPaged(d2,function(soFar){
+          var pct=totalMsgs?Math.min(100,Math.round(soFar/totalMsgs*100)):0;
+          if(st)st.innerHTML='📊 '+soFar+' / '+totalMsgs+' ('+pct+'%)...';
+        });
         _lastC=cRows;_lastM=mRows;_lastV=[];
         buildCRM(cRows,mRows,[]);
         if(st)st.innerHTML='';
