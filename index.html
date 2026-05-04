@@ -118,10 +118,10 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--bd);vertical-align:middl
 <label style="font-size:12px;font-weight:600;color:var(--t2)">📅 Date window:</label>
 <select id="daysSel" style="padding:6px 12px;border-radius:8px;border:1px solid var(--bd);font-size:13px;font-weight:700;background:var(--s);cursor:pointer;flex:1">
 <option value="1">Last 1 day</option>
-<option value="2">Last 2 days</option>
+<option value="2" selected>Last 2 days</option>
 <option value="3">Last 3 days</option>
 <option value="5">Last 5 days</option>
-<option value="7" selected>Last 7 days</option>
+<option value="7">Last 7 days</option>
 <option value="10">Last 10 days</option>
 <option value="14">Last 14 days</option>
 <option value="30">Last 30 days</option>
@@ -183,7 +183,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--bd);vertical-align:middl
 <span style="font-size:12px;font-weight:600;color:var(--t2)">📅 <span data-i18n="win.window">Window:</span></span>
 <select id="daysSelMain" style="padding:4px 10px;border-radius:6px;border:1px solid var(--bd);font-size:13px;font-weight:700;background:var(--s);color:var(--t1);cursor:pointer">
 <option value="1">1 day</option>
-<option value="2">2 days</option>
+<option value="2" selected>2 days</option>
 <option value="3">3 days</option>
 <option value="5">5 days</option>
 <option value="7">7 days</option>
@@ -555,7 +555,7 @@ async function loadFromDB(){
   btn.disabled=true;btn.textContent='⏳ Loading...';
   st.innerHTML='📡 Loading data from database...';
   try{
-    var days=parseInt((document.getElementById('daysSel')||{}).value)||7;
+    var days=parseInt((document.getElementById('daysSel')||{}).value)||2;
     var r=await fetch(API_BASE+'/data?days='+days);
     var data=await r.json();
     if(data.status!=='ok'||!data.contactsCSV){
@@ -1171,7 +1171,7 @@ if(loadState()&&Object.keys(rp).length>0){rnMUI()}else{
       showUpSecIfAdmin();
       var st=document.getElementById('syncSt');
       if(st)st.innerHTML='📡 Loading...';
-      var d2=parseInt((document.getElementById('daysSel')||{}).value)||7;
+      var d2=parseInt((document.getElementById('daysSel')||{}).value)||2;
       var r=await fetch(API_BASE+'/data?days='+d2);
       var data=await r.json();
       if(data.status==='ok'&&data.contactsCSV&&data.contactCount>0){
