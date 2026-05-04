@@ -211,6 +211,10 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--bd);vertical-align:middl
 <div style="display:flex;gap:6px;flex-wrap:wrap" id="custFilters">
 <button class="nv" data-cf="all"><span data-i18n="cust.all">All</span><span class="ct" id="cfAll">—</span></button>
 <button class="nv" data-cf="mine">👤 <span data-i18n="cust.mine">Mine</span><span class="ct" id="cfMine">—</span></button>
+<button class="nv" data-cf="ag_jazmin" data-ag="Jazmin">Jazmin<span class="ct" id="cfAgJazmin">—</span></button>
+<button class="nv" data-cf="ag_nancy" data-ag="Nancy">Nancy<span class="ct" id="cfAgNancy">—</span></button>
+<button class="nv" data-cf="ag_yoana" data-ag="Yoana">Yoana<span class="ct" id="cfAgYoana">—</span></button>
+<button class="nv" data-cf="ag_unassigned" data-ag="Unassigned">⚠️ <span data-i18n="cust.unassigned">Unassigned</span><span class="ct" id="cfAgUnassigned">—</span></button>
 <button class="nv" data-cf="vip">💎 <span data-i18n="cust.vips">VIPs</span><span class="ct" id="cfVip">—</span></button>
 <button class="nv" data-cf="lapsed">⏰ <span data-i18n="cust.lapsed">Lapsed</span><span class="ct" id="cfLapsed">—</span></button>
 <button class="nv" data-cf="online">🛒 <span data-i18n="cust.online">Online</span><span class="ct" id="cfOnline">—</span></button>
@@ -309,8 +313,10 @@ var I18N = {
   'cust.col_spend':    { en: 'Lifetime $',     es: 'Total $' },
   'cust.col_favorite': { en: 'Favorite',       es: 'Favorito' },
   'cust.col_agent':    { en: 'Agent',          es: 'Agente' },
+  'cust.col_city':     { en: 'City',           es: 'Ciudad' },
   'cust.col_last_buy': { en: 'Last Buy',       es: 'Última Compra' },
   'cust.col_status':   { en: 'Status',         es: 'Estado' },
+  'cust.unassigned':   { en: 'Unassigned',     es: 'Sin Asignar' },
 
   // Customer profile panel
   'cp.lifetime_spend': { en: 'Lifetime Spend', es: 'Gasto Total' },
@@ -831,12 +837,19 @@ function renderCustomerStats(){
   document.getElementById('cfVip').textContent = (s.vip||0).toLocaleString();
   document.getElementById('cfLapsed').textContent = (s.lapsed||0).toLocaleString();
   document.getElementById('cfOnline').textContent = (s.online||0).toLocaleString();
-  // "Mine" count — count customers where favorite_agent matches the current view
+  // Per-agent counts (computed server-side using respond.io contacts join)
+  var elJ = document.getElementById('cfAgJazmin'); if(elJ) elJ.textContent = (s.agent_jazmin||0).toLocaleString();
+  var elN = document.getElementById('cfAgNancy');  if(elN) elN.textContent = (s.agent_nancy||0).toLocaleString();
+  var elY = document.getElementById('cfAgYoana');  if(elY) elY.textContent = (s.agent_yoana||0).toLocaleString();
+  var elU = document.getElementById('cfAgUnassigned'); if(elU) elU.textContent = (s.agent_unassigned||0).toLocaleString();
+  // "Mine" count — count customers where effective_agent matches the current view
   var myName = (typeof VIEW_MODE !== 'undefined' && VIEW_MODE)
     ? (VIEW_MODE.charAt(0).toUpperCase() + VIEW_MODE.slice(1)) : null;
   var mineCount = 0;
   if (myName && _custData) {
-    mineCount = _custData.filter(function(c){ return c.favorite_agent === myName }).length;
+    mineCount = _custData.filter(function(c){
+      return (c.effective_agent || c.respond_agent || c.favorite_agent) === myName;
+    }).length;
   }
   var cfMine = document.getElementById('cfMine');
   if (cfMine) cfMine.textContent = mineCount.toLocaleString();
@@ -874,6 +887,12 @@ function renderCustomerTable(){
     myName = VIEW_MODE.charAt(0).toUpperCase() + VIEW_MODE.slice(1); // 'nancy' -> 'Nancy'
   }
 
+  // Helper: which agent does this customer belong to?
+  // Priority: respond_agent (WhatsApp ownership) > favorite_agent (SQL purchases) > Unassigned
+  function effectiveAgent(c){
+    return c.effective_agent || c.respond_agent || c.favorite_agent || 'Unassigned';
+  }
+
   // Apply filter
   var rows = _custData.filter(function(c){
     if(_custFilter==='vip' && c.buyer_tier!=='VIP') return false;
@@ -882,9 +901,14 @@ function renderCustomerTable(){
     if(_custFilter==='vestido' && c.favorite_category!=='Vestido') return false;
     if(_custFilter==='blusa' && c.favorite_category!=='Blusa') return false;
     if(_custFilter==='bata' && c.favorite_category!=='Bata') return false;
-    if(_custFilter==='mine' && (!myName || c.favorite_agent !== myName)) return false;
+    if(_custFilter==='mine' && (!myName || effectiveAgent(c) !== myName)) return false;
+    // Agent-specific filters
+    if(_custFilter==='ag_jazmin' && effectiveAgent(c) !== 'Jazmin') return false;
+    if(_custFilter==='ag_nancy' && effectiveAgent(c) !== 'Nancy') return false;
+    if(_custFilter==='ag_yoana' && effectiveAgent(c) !== 'Yoana') return false;
+    if(_custFilter==='ag_unassigned' && effectiveAgent(c) !== 'Unassigned') return false;
     if(q){
-      var hay = ((c.name||'')+' '+(c.phone||'')+' '+(c.city||'')).toLowerCase();
+      var hay = ((c.name||'')+' '+(c.phone||'')+' '+(c.city||'')+' '+(c.respond_city||'')).toLowerCase();
       if(hay.indexOf(q)<0) return false;
     }
     return true;
@@ -909,6 +933,7 @@ function renderCustomerTable(){
     '<th style="text-align:right">'+t('cust.col_spend')+'</th>'+
     '<th>'+t('cust.col_favorite')+'</th>'+
     '<th>'+t('cust.col_agent')+'</th>'+
+    '<th>'+t('cust.col_city')+'</th>'+
     '<th>'+t('cust.col_last_buy')+'</th>'+
     '<th>'+t('cust.col_status')+'</th>'+
     '<th></th>'+
@@ -922,7 +947,17 @@ function renderCustomerTable(){
     else tierBadge = '<span style="background:#f3f4f6;color:#6b7280;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:600">'+t('tier.casual')+'</span>';
 
     var cat = c.favorite_category ? '<span style="background:#f3e8ff;color:#6b21a8;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:600">'+c.favorite_category+'</span>' : '<span style="color:var(--t3)">—</span>';
-    var ag = c.favorite_agent ? '<span class="bd ba">'+c.favorite_agent+'</span>' : '<span style="color:var(--t3)">—</span>';
+    // Agent: prefer respond.io WhatsApp ownership, fall back to SQL favorite_agent.
+    // effectiveAgent() helper is defined above and matches what filters & stats use.
+    var agName = effectiveAgent(c);
+    var ag = (agName && agName !== 'Unassigned')
+      ? '<span class="bd ba">'+agName+'</span>'
+      : '<span style="color:var(--t3)">—</span>';
+    // City: prefer respond.io ciudad, fall back to SQL city, else LADA-derived (already in respond_city if no SQL/CSV match).
+    var cityVal = c.city || c.respond_city || '';
+    var cityCell = cityVal
+      ? '<span class="bd bc">'+cityVal+'</span>'
+      : '<span style="color:var(--t3)">—</span>';
     var lapsedBadge = c.is_lapsed
       ? '<span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:600">⏰ '+c.days_since_last_purchase+'d</span>'
       : '<span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:600">✓ '+t('tier.active')+'</span>';
@@ -940,6 +975,7 @@ function renderCustomerTable(){
       '<td style="text-align:right;font-weight:700">'+spend+'</td>'+
       '<td>'+cat+'</td>'+
       '<td>'+ag+'</td>'+
+      '<td>'+cityCell+'</td>'+
       '<td>'+lastBuy+'</td>'+
       '<td>'+lapsedBadge+'</td>'+
       '<td>'+waBtn+'</td>'+
