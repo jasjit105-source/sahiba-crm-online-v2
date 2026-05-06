@@ -6,6 +6,8 @@
 <title>Sahiba CRM Dashboard</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf.plugin.autotable.min.js"></script>
 <style>
 :root{--bg:#F4F6F9;--s:#FFF;--s2:#F0F2F5;--bd:#E2E6ED;--bd2:#D0D5DD;--t:#1A1D23;--t2:#5F6B7A;--t3:#9AA3B0;--ac:#2563EB;--al:#EFF4FF;--gn:#16A34A;--gb:#ECFDF3;--or:#EA580C;--ob:#FFF4ED;--rd:#DC2626;--rb:#FEF2F2;--pu:#7C3AED;--pb:#F5F0FF;--go:#B45309;--gob:#FFFBEB;--r:10px;--sh:0 1px 3px rgba(0,0,0,.06)}
 *{margin:0;padding:0;box-sizing:border-box}body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--t);min-height:100vh}
@@ -223,7 +225,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--bd);vertical-align:middl
 <button class="nv" data-cf="bata">🥻 <span data-i18n="cust.batas">Batas</span></button>
 </div>
 <input type="text" class="sb" id="custSch" placeholder="Search name or phone..." data-i18n-placeholder="cust.search" style="margin-left:10px">
-<div class="tr"><button class="bs bsy" id="custRf">🔄 <span data-i18n="btn.refresh">Refresh</span></button></div>
+<div class="tr"><button class="bs bgn" id="custDlXls">⬇️ Excel</button><button class="bs" id="custDlPdf" style="background:#dc2626;color:#fff;border-color:#dc2626;margin-left:4px">📄 PDF</button><button class="bs bsy" id="custRf" style="margin-left:4px">🔄 <span data-i18n="btn.refresh">Refresh</span></button></div>
 </div>
 <div id="custStats" style="display:flex;gap:10px;margin:12px 0;flex-wrap:wrap"></div>
 <div class="tw" id="custTbl"></div>
@@ -426,6 +428,20 @@ setTimeout(function(){
   if (bES) bES.onclick = function(){ setLanguage('es') };
   applyLanguage();
 }, 100);
+
+// ═══ NAME CAPITALIZATION (Excel PROPER() equivalent) ═══
+// Converts "maricela" or "MARICELA HERNANDEZ" to "Maricela Hernandez".
+// Preserves Spanish accents, hyphens, and apostrophes (e.g. "María-José D'Alessandro").
+function properCase(s){
+  if(s==null) return '';
+  var str = String(s).trim();
+  if(!str) return '';
+  // Lowercase the whole thing first, then uppercase the first letter of each "word".
+  // \p{L} = any letter in any language (handles á, é, ñ, ü, etc.)
+  return str.toLowerCase().replace(/(^|[\s\-'’.])([\p{L}])/gu, function(_, sep, ch){
+    return sep + ch.toUpperCase();
+  });
+}
 
 // ═══ ADMIN / AGENT VIEW GATE ═══
 // URL ?v=nancy|jazmin|yoana → agent view (read-only, no upload)
@@ -940,7 +956,7 @@ function renderCustomerTable(){
     '</tr></thead><tbody>';
 
   rows.slice(0,500).forEach(function(c){
-    var name = c.name || '<span style="color:var(--t3)">—</span>';
+    var name = c.name ? properCase(c.name) : '<span style="color:var(--t3)">—</span>';
     var tierBadge = '';
     if(c.buyer_tier==='VIP') tierBadge = '<span style="background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#fff;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:700">💎 '+t('tier.vip')+'</span>';
     else if(c.buyer_tier==='Regular') tierBadge = '<span style="background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:600">'+t('tier.regular')+'</span>';
@@ -1055,7 +1071,7 @@ function renderCustomerProfile(d, container){
   container.innerHTML =
     '<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:16px">'+
       '<div>'+
-        '<h2 style="font-size:20px;font-weight:800;margin:0">'+(c.name||'(no name)')+'</h2>'+
+        '<h2 style="font-size:20px;font-weight:800;margin:0">'+(c.name?properCase(c.name):'(no name)')+'</h2>'+
         '<div style="font-size:13px;color:var(--t2);margin-top:2px">+52 '+c.phone+(c.city?' · '+c.city:'')+'</div>'+
       '</div>'+
       '<button onclick="closeCustomerProfile()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:var(--t2);padding:0 4px">×</button>'+
@@ -1112,6 +1128,120 @@ function rnCust(){
   });
   document.getElementById('custSch').oninput = renderCustomerTable;
   document.getElementById('custRf').onclick = loadCustomers;
+
+  // ─── Excel + PDF export of currently-visible customers ───
+  // Returns the same filtered+sorted list that renderCustomerTable() draws.
+  function getVisibleCustomers(){
+    if(!_custData || !_custData.length) return [];
+    var q = (document.getElementById('custSch').value||'').toLowerCase().trim();
+    var myName = null;
+    if (typeof VIEW_MODE !== 'undefined' && VIEW_MODE) {
+      myName = VIEW_MODE.charAt(0).toUpperCase() + VIEW_MODE.slice(1);
+    }
+    function effAg(c){return c.effective_agent || c.respond_agent || c.favorite_agent || 'Unassigned';}
+    var rows = _custData.filter(function(c){
+      if(_custFilter==='vip' && c.buyer_tier!=='VIP') return false;
+      if(_custFilter==='lapsed' && !c.is_lapsed) return false;
+      if(_custFilter==='online' && !(c.total_online_orders>0)) return false;
+      if(_custFilter==='vestido' && c.favorite_category!=='Vestido') return false;
+      if(_custFilter==='blusa' && c.favorite_category!=='Blusa') return false;
+      if(_custFilter==='bata' && c.favorite_category!=='Bata') return false;
+      if(_custFilter==='mine' && (!myName || effAg(c) !== myName)) return false;
+      if(_custFilter==='ag_jazmin' && effAg(c) !== 'Jazmin') return false;
+      if(_custFilter==='ag_nancy' && effAg(c) !== 'Nancy') return false;
+      if(_custFilter==='ag_yoana' && effAg(c) !== 'Yoana') return false;
+      if(_custFilter==='ag_unassigned' && effAg(c) !== 'Unassigned') return false;
+      if(q){
+        var hay = ((c.name||'')+' '+(c.phone||'')+' '+(c.city||'')+' '+(c.respond_city||'')).toLowerCase();
+        if(hay.indexOf(q)<0) return false;
+      }
+      return true;
+    });
+    rows.sort(function(a,b){ return (b.total_lifetime_mxn||0) - (a.total_lifetime_mxn||0); });
+    return rows;
+  }
+
+  // Build the 4-column "basics" rows used by both exports.
+  function buildExportRows(){
+    var locale = LANG === 'es' ? 'es-MX' : 'en-US';
+    var rows = getVisibleCustomers();
+    return rows.map(function(c){
+      return {
+        name:    c.name ? properCase(c.name) : '—',
+        phone:   c.phone || '',
+        lifetime: c.total_lifetime_mxn ? Math.round(c.total_lifetime_mxn) : 0,
+        last_buy: c.last_purchase_date
+          ? new Date(c.last_purchase_date).toLocaleDateString(locale,{month:'short',day:'numeric',year:'2-digit'})
+          : '—'
+      };
+    });
+  }
+
+  // Pretty filename: Sahiba_Customers_<Filter>_<YYYY-MM-DD>.<ext>
+  function exportFilename(ext){
+    var labels = {all:'All', vip:'VIPs', lapsed:'Lapsed', online:'Online',
+      vestido:'Vestido', blusa:'Blusa', bata:'Bata', mine:'Mine',
+      ag_jazmin:'Jazmin', ag_nancy:'Nancy', ag_yoana:'Yoana', ag_unassigned:'Unassigned'};
+    var seg = labels[_custFilter] || 'All';
+    var d = new Date().toISOString().slice(0,10);
+    return 'Sahiba_Customers_'+seg+'_'+d+'.'+ext;
+  }
+
+  document.getElementById('custDlXls').onclick = function(){
+    var rows = buildExportRows();
+    if(!rows.length){ alert(LANG==='es' ? 'No hay clientes para exportar.' : 'No customers to export.'); return; }
+    var headers = LANG==='es'
+      ? ['Nombre', 'Teléfono', 'Total Comprado (MXN)', 'Última Compra']
+      : ['Name', 'Phone', 'Lifetime Spend (MXN)', 'Last Buy'];
+    var aoa = [headers].concat(rows.map(function(r){
+      return [r.name, r.phone, r.lifetime, r.last_buy];
+    }));
+    var ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols'] = [{wch:32},{wch:14},{wch:18},{wch:14}];
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Customers');
+    XLSX.writeFile(wb, exportFilename('xlsx'));
+  };
+
+  document.getElementById('custDlPdf').onclick = function(){
+    var rows = buildExportRows();
+    if(!rows.length){ alert(LANG==='es' ? 'No hay clientes para exportar.' : 'No customers to export.'); return; }
+    if(typeof window.jspdf === 'undefined'){ alert('PDF library not loaded yet — try again in a moment.'); return; }
+    var jsPDF = window.jspdf.jsPDF;
+    var doc = new jsPDF({orientation:'portrait', unit:'pt', format:'letter'});
+    var titleEs = 'Sahiba — Lista de Clientes';
+    var titleEn = 'Sahiba — Customer List';
+    var subEs = 'Filtro: '+(_custFilter==='all'?'Todos':_custFilter)+'  ·  Total: '+rows.length+'  ·  '+new Date().toLocaleDateString('es-MX');
+    var subEn = 'Filter: '+_custFilter+'  ·  Total: '+rows.length+'  ·  '+new Date().toLocaleDateString('en-US');
+    doc.setFontSize(16); doc.setFont(undefined,'bold');
+    doc.text(LANG==='es' ? titleEs : titleEn, 40, 50);
+    doc.setFontSize(10); doc.setFont(undefined,'normal'); doc.setTextColor(100);
+    doc.text(LANG==='es' ? subEs : subEn, 40, 68);
+    var headers = LANG==='es'
+      ? [['Nombre','Teléfono','Total Comprado','Última Compra']]
+      : [['Name','Phone','Lifetime Spend','Last Buy']];
+    var body = rows.map(function(r){
+      return [r.name, r.phone, '$'+r.lifetime.toLocaleString(), r.last_buy];
+    });
+    doc.autoTable({
+      head: headers,
+      body: body,
+      startY: 85,
+      theme: 'striped',
+      styles: {fontSize:9, cellPadding:5},
+      headStyles: {fillColor:[37,99,235], textColor:255, fontStyle:'bold'},
+      alternateRowStyles: {fillColor:[248,250,253]},
+      columnStyles: {
+        0: {cellWidth: 200},
+        1: {cellWidth: 90},
+        2: {cellWidth: 110, halign:'right'},
+        3: {cellWidth: 90}
+      },
+      margin: {left:40, right:40}
+    });
+    doc.save(exportFilename('pdf'));
+  };
+  // ─── end Excel + PDF export ───
 
   // Load on first show
   if(!_custData) loadCustomers();
