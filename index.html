@@ -1221,18 +1221,25 @@ document.getElementById('dtL').textContent=new Date().toLocaleDateString('es-MX'
 ldLog();
 
 // ── PERSISTENT DATA: try to load previous session ──
+// Version bump (v2) ensures old stale localStorage from before the
+// "Neon is source of truth" refactor is auto-discarded on first load.
+var LOCAL_STORAGE_KEY='sahiba_crm_data_v2';
+(function autoMigrate(){
+  // Wipe the old key so old cached data can never override fresh server data.
+  try{localStorage.removeItem('sahiba_crm_data');}catch(e){}
+})();
 function saveState(){
   try{
     var data={rp:{},wl:[],aq:{},ts:new Date().toISOString()};
     for(var k in rp){if(!rp[k])continue;data.rp[k]=rp[k].map(function(l){var o={};for(var p in l){o[p]=l[p] instanceof Date?'__DT__'+l[p].toISOString():l[p]}return o})}
     data.wl=wl.map(function(l){var o={};for(var p in l){o[p]=l[p] instanceof Date?'__DT__'+l[p].toISOString():l[p]}return o});
     for(var a in aq){data.aq[a]=aq[a].map(function(l){var o={};for(var p in l){o[p]=l[p] instanceof Date?'__DT__'+l[p].toISOString():l[p]}return o})}
-    localStorage.setItem('sahiba_crm_data',JSON.stringify(data));
+    localStorage.setItem(LOCAL_STORAGE_KEY,JSON.stringify(data));
   }catch(e){console.warn('Save failed:',e)}
 }
 function loadState(){
   try{
-    var raw=localStorage.getItem('sahiba_crm_data');if(!raw)return false;
+    var raw=localStorage.getItem(LOCAL_STORAGE_KEY);if(!raw)return false;
     var data=JSON.parse(raw);
     function fix(arr){return(arr||[]).map(function(o){for(var p in o){if(typeof o[p]==='string'&&o[p].indexOf('__DT__')===0)o[p]=new Date(o[p].slice(6))}return o})}
     rp={};for(var k in data.rp)rp[k]=fix(data.rp[k]);
@@ -1244,24 +1251,25 @@ function loadState(){
   }catch(e){console.warn('Load failed:',e);return false}
 }
 
-// Try loading saved data on startup, then try loading from database
-if(loadState()&&Object.keys(rp).length>0){rnMUI()}else{
-  // Auto-load from database
-  (async function(){
-    // Helper that ONLY shows upSec for admin. For agents, never show it.
-    function showUpSecIfAdmin(){
-      if(IS_ADMIN){
-        document.getElementById('upSec').style.display='flex';
-      }else{
-        document.getElementById('upSec').style.display='none';
-        var mui=document.getElementById('mainUI');
-        if(mui)mui.style.display='block';
-      }
+// ─── STARTUP: NEON IS THE SOURCE OF TRUTH ───
+// Always fetch fresh from server first. Only fall back to localStorage
+// if we are offline (network failure). This ensures every device — yours,
+// Jazmin's, Nancy's, Yoana's — always sees the latest data on page load.
+(async function(){
+  // Helper that ONLY shows upSec for admin. For agents, never show it.
+  function showUpSecIfAdmin(){
+    if(IS_ADMIN){
+      document.getElementById('upSec').style.display='flex';
+    }else{
+      document.getElementById('upSec').style.display='none';
+      var mui=document.getElementById('mainUI');
+      if(mui)mui.style.display='block';
     }
-    try{
-      showUpSecIfAdmin();
-      var st=document.getElementById('syncSt');
-      if(st)st.innerHTML='📡 Loading...';
+  }
+  try{
+    showUpSecIfAdmin();
+    var st=document.getElementById('syncSt');
+    if(st)st.innerHTML='📡 Loading fresh data from server...';
       var d2=parseInt((document.getElementById('daysSel')||{}).value)||7;
       // Phase 1: contacts + summary
       var r=await fetch(API_BASE+'/data?days='+d2);
@@ -1291,19 +1299,30 @@ if(loadState()&&Object.keys(rp).length>0){rnMUI()}else{
         }
       }
     }catch(e){
+      // Server unreachable — try localStorage as offline fallback
       var st2=document.getElementById('syncSt');
-      if(st2)st2.innerHTML='';
-      showUpSecIfAdmin();
-      if(!IS_ADMIN){
-        var mui=document.getElementById('mainUI');
-        if(mui){
-          mui.style.display='block';
-          mui.innerHTML='<div style="padding:60px 20px;text-align:center;color:var(--t2)"><h2 style="font-size:18px;color:var(--t1);margin-bottom:8px">⚠️ Error de conexión</h2><p style="font-size:13px">No se pudo cargar. Avisa a Jessie.</p></div>';
+      if(st2)st2.innerHTML='⚠️ Sin conexión, mostrando datos guardados...';
+      var hadCache=false;
+      try{
+        if(loadState()&&Object.keys(rp).length>0){
+          rnMUI();
+          hadCache=true;
+          if(st2)st2.innerHTML='⚠️ Modo offline — datos del último uso';
+        }
+      }catch(_){}
+      if(!hadCache){
+        if(st2)st2.innerHTML='';
+        showUpSecIfAdmin();
+        if(!IS_ADMIN){
+          var mui=document.getElementById('mainUI');
+          if(mui){
+            mui.style.display='block';
+            mui.innerHTML='<div style="padding:60px 20px;text-align:center;color:var(--t2)"><h2 style="font-size:18px;color:var(--t1);margin-bottom:8px">⚠️ Error de conexión</h2><p style="font-size:13px">No se pudo cargar. Avisa a Jessie.</p></div>';
+          }
         }
       }
     }
   })();
-}
 
 // ── FILE UPLOAD ──
 var dz=document.getElementById('dz'),fIn=document.getElementById('fIn'),rBn=document.getElementById('rBn');
