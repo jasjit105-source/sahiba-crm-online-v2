@@ -5,9 +5,16 @@
 [functions]
   node_bundler = "esbuild"
 
+# ─── API ROUTES ─────────────────────────────────────────────────────────
+
 [[redirects]]
   from = "/api/data"
   to = "/.netlify/functions/data"
+  status = 200
+
+[[redirects]]
+  from = "/api/messages"
+  to = "/.netlify/functions/messages"
   status = 200
 
 [[redirects]]
@@ -50,9 +57,22 @@
   to = "/.netlify/functions/customers-list"
   status = 200
 
-[[redirects]]
-  from = "/api/messages"
-  to = "/.netlify/functions/messages"
-  status = 200
+# ─── CACHE HEADERS ──────────────────────────────────────────────────────
+# Force browsers to always re-fetch HTML and API responses.
+# Without this, iOS Safari aggressively caches the dashboard and agents
+# see stale data even after a fresh upload.
 
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
 
+[[headers]]
+  for = "/"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+
+[[headers]]
+  for = "/api/*"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
