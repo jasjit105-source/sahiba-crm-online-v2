@@ -1406,8 +1406,50 @@ function loadState(){
   }catch(e){console.warn('Load failed:',e);return false}
 }
 
+// Rebuild call lists from rp data (used after loadState and after buildCRM)
+function rebuildCallLists(){
+  var now=new Date();
+  var allLeads=[].concat(rp['Hot Cust']||[],rp['Hot Leads']||[],rp['Returning']||[]);
+  var seen={};callList=[];
+  allLeads.forEach(function(l){
+    if(seen[l.id])return;seen[l.id]=1;
+    var hrs=l.lt?Math.floor((now-l.lt)/36e5):9999;
+    var buyScore=0;var reasons=[];
+    if(l.pv>0){buyScore+=40;reasons.push('💰 Payment mentioned')}
+    if(l.ws){buyScore+=35;reasons.push('🏷 Wholesale interest')}
+    if(l.ii>=2){buyScore+=30;reasons.push('📷 Sent '+l.ii+' images')}
+    else if(l.ii>=1){buyScore+=15;reasons.push('📷 Sent image')}
+    if(l.im>=10){buyScore+=20;reasons.push('💬 '+l.im+' messages')}
+    else if(l.im>=5){buyScore+=15;reasons.push('💬 '+l.im+' messages')}
+    else if(l.im>=3){buyScore+=10;reasons.push('💬 '+l.im+' msgs')}
+    var lv=(l.lc||'').toLowerCase();
+    if(lv.includes('customer')){buyScore+=25;reasons.push('👤 Customer')}
+    else if(lv.includes('payment')){buyScore+=30;reasons.push('💳 Payment stage')}
+    else if(lv.includes('intento')){buyScore+=20;reasons.push('🛒 Tried to buy')}
+    else if(lv.includes('hot lead')){buyScore+=15;reasons.push('🔥 Hot lead')}
+    if(hrs<=48){buyScore+=15;reasons.push('⏰ <48h ago')}
+    else if(hrs<=72){buyScore+=10;reasons.push('⏰ <72h ago')}
+    if(buyScore<20||l.paid)return;
+    var window24=hrs<=24?'🟢 OPEN':'🔴 CLOSED';
+    callList.push({id:l.id,nm:l.nm,ph:l.ph,ag:l.ag,lc:l.lc,cy:l.cy,
+      buyScore:buyScore,reasons:reasons,hrs:hrs,window:window24,
+      sc:l.sc,pr:l.pr,ws:l.ws,py:l.py,ii:l.ii,im:l.im,om:l.om,act:l.act,ds:l.ds,lt:l.lt});
+  });
+  callList.sort(function(a,b){return b.buyScore-a.buyScore});
+  var jazminSet={},yoanaSet={};
+  callList.forEach(function(l){
+    var lv=(l.lc||'').toLowerCase();
+    var isCustomer=lv.includes('customer')||lv.includes('cliente');
+    if(l.ag==='Jazmin' && (l.hrs<=80 || isCustomer)){jazminSet[l.id]=1}
+    if(l.ag==='Yoana'){yoanaSet[l.id]=1}
+  });
+  jazminCL=callList.filter(function(l){return jazminSet[l.id]});
+  yoanaCL=callList.filter(function(l){return yoanaSet[l.id]});
+  nancyCL=callList.filter(function(l){return !jazminSet[l.id]&&!yoanaSet[l.id]});
+}
+
 // Try loading saved data on startup, then try loading from database
-if(loadState()&&Object.keys(rp).length>0){rnMUI()}else{
+if(loadState()&&Object.keys(rp).length>0){rebuildCallLists();rnMUI()}else{
   // Auto-load from database
   (async function(){
     // Helper that ONLY shows upSec for admin. For agents, never show it.
