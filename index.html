@@ -206,7 +206,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--bd);vertical-align:middl
 <div class="pn" id="pNancycl"><div class="tb"><input type="text" class="sb" id="ncSch" placeholder="Search Nancy call list..."><div class="tr"><button class="bs bgn" id="ncDl">⬇ Download Nancy List</button></div></div><div id="ncSummary"></div><div class="tw" id="ncTbl"></div><div class="rc" id="ncCnt"></div></div>
 <div class="pn" id="pJazmincl"><div class="tb"><input type="text" class="sb" id="jcSch" placeholder="Search Jazmin call list..."><div class="tr"><button class="bs bgn" id="jcDl">⬇ Download Jazmin List</button></div></div><div id="jcSummary"></div><div class="tw" id="jcTbl"></div><div class="rc" id="jcCnt"></div></div>
 <div class="pn" id="pYoanacl"><div class="tb"><input type="text" class="sb" id="ycSch" placeholder="Search Yoana call list..."><div class="tr"><button class="bs bgn" id="ycDl">⬇ Download Yoana List</button></div></div><div id="ycSummary"></div><div class="tw" id="ycTbl"></div><div class="rc" id="ycCnt"></div></div>
-<div class="pn" id="pTakeover"><div class="tb"><input type="text" class="sb" id="toSch" placeholder="Search takeover leads..."><div class="tr"><button class="bs bgn" id="toDl">⬇ Download List</button></div></div><div id="toSummary"></div><div class="tw" id="toTbl"></div><div class="rc" id="toCnt"></div></div>
+<div class="pn" id="pTakeover"><div id="toRoot" style="background:#12131a;border-radius:14px;padding:24px;color:#e2e8f0;font-family:system-ui,-apple-system,sans-serif;min-height:80vh"><div id="toHeader"></div><div id="toStats"></div><div id="toSearch" style="margin:16px 0;display:flex;gap:10px;align-items:center"><input type="text" id="toSch" placeholder="Search..." style="flex:1;padding:10px 16px;background:#1e1f2e;border:1px solid #2d2e3f;border-radius:8px;color:#e2e8f0;font-size:13px;outline:none"><select id="toFilter" style="padding:10px 14px;background:#1e1f2e;border:1px solid #2d2e3f;border-radius:8px;color:#e2e8f0;font-size:13px;outline:none;cursor:pointer"><option value="all">All</option><option value="jazmin">Jazmin</option><option value="yoana">Yoana</option><option value="unassigned">Unassigned</option></select><span id="toResultsCnt" style="font-size:12px;color:#64748b;white-space:nowrap">0 results</span></div><div id="toTbl" style="overflow-x:auto"></div><div id="toCnt" style="font-size:11px;color:#64748b;margin-top:8px"></div></div></div>
 <div class="pn" id="pMap"><div id="mapContent" style="background:var(--s);border:1px solid var(--bd);border-radius:var(--r);padding:20px;box-shadow:var(--sh)"><div id="mapChart" style="width:100%;height:500px"></div><div id="mapLegend" style="margin-top:14px"></div></div></div>
 <div class="pn" id="pUploadlog"><div class="tb"><div style="font-size:14px;color:var(--t1);font-weight:700">📜 Upload History</div><div class="tr"><button class="bs bsy" id="ulRf">🔄 Refresh</button></div></div><div id="ulContent" style="margin-top:14px"></div></div>
 <div class="pn" id="pCustomers">
@@ -2045,58 +2045,100 @@ function rnYCLT(){
     'Yoana\'s assigned leads');
 }
 
-// ══ TAKEOVER TAB — 80h+ non-customer contacts from other agents ══
+// ══ TAKEOVER TAB — 80h+ non-customer contacts, dark theme ══
+var TO_MSG='Hola {nombre}, soy Nancy de Sahiba. Te escribo para dar seguimiento a tu interés en nuestra colección. Si ya estás listo(a), puedo ayudarte a completar tu pedido sin problema. También te comparto nuestro catálogo actualizado 😊';
+function toWaLink(ph,name){if(!ph)return'';var p=ph.replace(/\D/g,'');if(p.length===10)p='52'+p;var fn=(name||'').split(' ')[0]||'';var msg=TO_MSG.replace('{nombre}',fn);return'https://wa.me/'+p+'?text='+encodeURIComponent(msg)}
 function rnTO(){
   document.getElementById('toSch').oninput=rnTOT;
-  document.getElementById('toDl').onclick=function(){exAgCL(takeoverCL,'Takeover')};
+  document.getElementById('toFilter').onchange=rnTOT;
   rnTOT();
 }
 function rnTOT(){
-  var w=document.getElementById('toTbl'),q=(document.getElementById('toSch').value||'').toLowerCase();
-  var fd=q?takeoverCL.filter(function(l){return(l.nm||'').toLowerCase().includes(q)||(l.ph||'').includes(q)||(l.ag||'').toLowerCase().includes(q)||(l.cy||'').toLowerCase().includes(q)}):takeoverCL;
-  // Stats
-  var fromJazmin=fd.filter(function(l){return l.ag==='Jazmin'});
-  var fromYoana=fd.filter(function(l){return l.ag==='Yoana'});
-  var fromOther=fd.filter(function(l){return l.ag!=='Jazmin'&&l.ag!=='Yoana'});
-  var over120=fd.filter(function(l){return l.hrs>=120});
-  var withWS=fd.filter(function(l){return l.ws});
-  document.getElementById('toSummary').innerHTML=
-    '<div style="background:linear-gradient(135deg,#1e1b4b,#312e81);color:#fff;border-radius:12px;padding:14px 18px;margin:10px 0">'+
-    '<div style="font-size:16px;font-weight:800;margin-bottom:4px">🔄 Takeover Opportunities</div>'+
-    '<div style="font-size:11px;opacity:.8;margin-bottom:10px">Contacts 80+ hours old, NOT customers — available for Nancy to take over</div></div>'+
-    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px;margin:8px 0">'+
-    '<div style="background:#fee2e2;border-radius:10px;padding:8px;text-align:center"><div style="font-size:18px;font-weight:800;color:#991b1b">'+fd.length+'</div><div style="font-size:10px;color:#991b1b">Total</div></div>'+
-    '<div style="background:#dbeafe;border-radius:10px;padding:8px;text-align:center"><div style="font-size:18px;font-weight:800;color:#1e40af">'+fromJazmin.length+'</div><div style="font-size:10px;color:#1e40af">From Jazmin</div></div>'+
-    '<div style="background:#f3e8ff;border-radius:10px;padding:8px;text-align:center"><div style="font-size:18px;font-weight:800;color:#6b21a8">'+fromYoana.length+'</div><div style="font-size:10px;color:#6b21a8">From Yoana</div></div>'+
-    '<div style="background:#fef3c7;border-radius:10px;padding:8px;text-align:center"><div style="font-size:18px;font-weight:800;color:#92400e">'+fromOther.length+'</div><div style="font-size:10px;color:#92400e">Unassigned</div></div>'+
-    '<div style="background:#fce7f3;border-radius:10px;padding:8px;text-align:center"><div style="font-size:18px;font-weight:800;color:#be185d">'+over120.length+'</div><div style="font-size:10px;color:#be185d">120h+</div></div>'+
-    '<div style="background:#ecfdf5;border-radius:10px;padding:8px;text-align:center"><div style="font-size:18px;font-weight:800;color:#065f46">'+withWS.length+'</div><div style="font-size:10px;color:#065f46">Wholesale</div></div>'+
+  var q=(document.getElementById('toSch').value||'').toLowerCase();
+  var agF=document.getElementById('toFilter').value;
+  var fd=takeoverCL;
+  if(agF==='jazmin')fd=fd.filter(function(l){return l.ag==='Jazmin'});
+  else if(agF==='yoana')fd=fd.filter(function(l){return l.ag==='Yoana'});
+  else if(agF==='unassigned')fd=fd.filter(function(l){return l.ag!=='Jazmin'&&l.ag!=='Yoana'});
+  if(q)fd=fd.filter(function(l){return(l.nm||'').toLowerCase().includes(q)||(l.ph||'').includes(q)||(l.ag||'').toLowerCase().includes(q)||(l.cy||'').toLowerCase().includes(q)});
+  var fromJazmin=fd.filter(function(l){return l.ag==='Jazmin'}).length;
+  var fromYoana=fd.filter(function(l){return l.ag==='Yoana'}).length;
+  var fromOther=fd.length-fromJazmin-fromYoana;
+  var newLeads=fd.filter(function(l){return l.hrs<=120}).length;
+  // Header
+  document.getElementById('toHeader').innerHTML=
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px">'+
+    '<div><div style="font-size:22px;font-weight:800;color:#e2e8f0;letter-spacing:-0.5px">Takeover</div>'+
+    '<div style="font-size:12px;color:#64748b;margin-top:2px">Leads disponibles 80h+ sin respuesta</div></div>'+
+    '<button onclick="exAgCL(takeoverCL,\'Takeover\')" style="padding:8px 16px;background:#1e1f2e;border:1px solid #2d2e3f;border-radius:8px;color:#e2e8f0;font-size:12px;font-weight:600;cursor:pointer">⬇ Export</button></div>';
+  // Stat cards
+  document.getElementById('toStats').innerHTML=
+    '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:6px">'+
+    '<div style="background:#1e1f2e;border-radius:10px;padding:16px;border-left:3px solid #e2e8f0"><div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:1px;font-weight:600">Total</div><div style="font-size:28px;font-weight:800;color:#e2e8f0;font-family:monospace;margin-top:4px">'+fd.length+'</div></div>'+
+    '<div style="background:#1e1f2e;border-radius:10px;padding:16px;border-left:3px solid #f59e0b"><div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:1px;font-weight:600">New</div><div style="font-size:28px;font-weight:800;color:#f59e0b;font-family:monospace;margin-top:4px">'+newLeads+'</div><div style="font-size:10px;color:#64748b;margin-top:2px">&lt;120h</div></div>'+
+    '<div style="background:#1e1f2e;border-radius:10px;padding:16px;border-left:3px solid #f97316"><div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:1px;font-weight:600">Pending</div><div style="font-size:28px;font-weight:800;color:#f97316;font-family:monospace;margin-top:4px">'+(fd.length-newLeads)+'</div><div style="font-size:10px;color:#64748b;margin-top:2px">120h+</div></div>'+
+    '<div style="background:#1e1f2e;border-radius:10px;padding:16px;border-left:3px solid #22c55e"><div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:1px;font-weight:600">Wholesale</div><div style="font-size:28px;font-weight:800;color:#22c55e;font-family:monospace;margin-top:4px">'+fd.filter(function(l){return l.ws}).length+'</div></div>'+
     '</div>';
-  if(!fd.length){w.innerHTML='<div class="em"><div class="ei">✅</div><p>No takeover opportunities right now</p></div>';document.getElementById('toCnt').textContent='';return}
-  var h='<table><thead><tr><th>Hours</th><th>Type</th><th>Name</th><th>Phone</th><th>Was Agent</th><th>City</th><th>Score</th><th>Whlsl</th><th>In</th><th>Out</th><th>📞</th><th>💬</th><th>✅ Status</th></tr></thead><tbody>';
-  fd.forEach(function(l){
-    var hClr=l.hrs>=168?'#dc2626':l.hrs>=120?'#ea580c':'#d97706';
-    var hLbl=l.hrs>=168?'🔴 '+l.hrs+'h':l.hrs>=120?'🟠 '+l.hrs+'h':'🟡 '+l.hrs+'h';
-    var agClr=l.ag==='Jazmin'?'#1e40af':l.ag==='Yoana'?'#6b21a8':'#6b7280';
-    var callBtn=l.ph?'<a href="tel:+'+l.ph.replace(/\D/g,'')+'" style="background:#3b82f6;color:#fff;padding:3px 10px;border-radius:5px;font-size:10px;font-weight:700;text-decoration:none">📞</a>':'—';
-    var waBtn=l.ph?'<a href="'+waLink(l.ph,genWaMsg(l))+'" target="_blank" style="background:#25d366;color:#fff;padding:3px 10px;border-radius:5px;font-size:10px;font-weight:700;text-decoration:none">💬</a>':'—';
-    h+='<tr>';
-    h+='<td><span style="background:'+hClr+';color:#fff;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:800">'+hLbl+'</span></td>';
-    h+='<td>'+typeBadge(l)+'</td>';
-    h+='<td class="cn">'+(l.nm||'—')+'</td>';
-    h+='<td class="cfn">'+(l.ph||'')+'</td>';
-    h+='<td><span style="background:#e0e7ff;color:'+agClr+';padding:2px 8px;border-radius:5px;font-size:10px;font-weight:700">'+l.ag+'</span></td>';
-    h+='<td>'+(l.cy?'<span class="bd bc">'+l.cy+'</span>':'')+'</td>';
-    h+='<td><span class="cs '+(l.sc>=500?'sh2':l.sc>=200?'sm2':'sl2')+'">'+l.sc+'</span></td>';
-    h+='<td>'+(l.ws?'<span class="bd bw">YES</span>':'')+'</td>';
-    h+='<td>'+l.im+'</td><td>'+l.om+'</td>';
-    h+='<td>'+callBtn+'</td><td>'+waBtn+'</td>';
-    h+='<td>'+checkInBtns(l)+'</td>';
+  document.getElementById('toResultsCnt').textContent=fd.length+' results';
+  var w=document.getElementById('toTbl');
+  if(!fd.length){w.innerHTML='<div style="text-align:center;padding:60px 20px;color:#475569"><div style="font-size:32px;margin-bottom:8px">✅</div><p>No takeover opportunities right now</p></div>';document.getElementById('toCnt').textContent='';return}
+  var h='<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="border-bottom:1px solid #2d2e3f">';
+  ['CLIENT','TAG','BUY%','REASON','CITY','LIFECYCLE','DAYS','STATUS','NOTES','WHATSAPP'].forEach(function(col){
+    h+='<th style="padding:10px 8px;text-align:left;font-size:9px;letter-spacing:1.2px;color:#64748b;font-weight:600;text-transform:uppercase;white-space:nowrap">'+col+'</th>';
+  });
+  h+='</tr></thead><tbody>';
+  fd.forEach(function(l,idx){
+    var fn=(l.nm||'').split(' ')[0];
+    var buyPct=Math.min(99,Math.max(10,Math.round((l.sc||0)/30)));
+    var lv=(l.lc||'').toLowerCase();
+    var lcBg='#2d2e3f';var lcFg='#94a3b8';var lcLbl=l.lc||'Lead';
+    if(lv.includes('hot lead')){lcBg='#3b1a1a';lcFg='#f87171';lcLbl='Hot Lead'}
+    else if(lv.includes('new lead')){lcBg='#1a2e3b';lcFg='#60a5fa';lcLbl='New Lead'}
+    else if(lv.includes('intento')){lcBg='#2e2a1a';lcFg='#fbbf24';lcLbl='Intento de compra'}
+    else if(lv.includes('payment')){lcBg='#1a2e1a';lcFg='#4ade80';lcLbl='Payment'}
+    var tagLbl=l.hrs<=120?'NUEVO':'PENDING';
+    var tagBg=l.hrs<=120?'#166534':'#92400e';
+    var tagFg='#fff';
+    var daysBg=l.hrs>=168?'#3b1a1a':l.hrs>=120?'#2e2a1a':'#1a2e1a';
+    var daysFg=l.hrs>=168?'#f87171':l.hrs>=120?'#fbbf24':'#4ade80';
+    var daysVal=Math.floor(l.hrs/24);
+    // Reasons
+    var reasons=[];
+    if(l.pv>0||l.py)reasons.push('Payment mentioned');
+    if(l.ws)reasons.push('Wholesale interest');
+    if(lv.includes('hot lead'))reasons.push('Hot lead');
+    if(lv.includes('intento'))reasons.push('Tried to buy');
+    if(l.ii>0)reasons.push(l.ii+' product images');
+    if(l.im>=5)reasons.push('Active ('+l.im+' msgs)');
+    if(l.hrs<=120)reasons.push('This week');
+    else reasons.push(daysVal+'d ago');
+    var reasonTxt=reasons.join(' · ')||'—';
+    h+='<tr style="border-bottom:1px solid #1e1f2e;transition:background .15s" onmouseover="this.style.background=\'#1a1b28\'" onmouseout="this.style.background=\'transparent\'">';
+    // Client (name + phone)
+    h+='<td style="padding:10px 8px"><div style="font-weight:600;color:#e2e8f0;white-space:nowrap">'+(l.nm||'—')+'</div><div style="font-size:10px;color:#64748b;font-family:monospace;margin-top:2px">'+(l.ph||'')+'</div></td>';
+    // Tag
+    h+='<td style="padding:10px 4px"><span style="background:'+tagBg+';color:'+tagFg+';padding:3px 10px;border-radius:4px;font-size:9px;font-weight:700;letter-spacing:.5px">'+tagLbl+'</span></td>';
+    // Buy %
+    h+='<td style="padding:10px 8px;font-family:monospace;font-weight:700;color:#f59e0b;font-size:13px">'+buyPct+'%</td>';
+    // Reason
+    h+='<td style="padding:10px 8px;max-width:220px"><div style="font-size:11px;color:#94a3b8;line-height:1.4">'+reasonTxt+'</div></td>';
+    // City
+    h+='<td style="padding:10px 8px;color:#94a3b8;font-size:11px;white-space:nowrap">'+(l.cy||'—')+'</td>';
+    // Lifecycle
+    h+='<td style="padding:10px 4px"><span style="background:'+lcBg+';color:'+lcFg+';padding:3px 8px;border-radius:4px;font-size:9px;font-weight:600;white-space:nowrap">'+lcLbl+'</span></td>';
+    // Days
+    h+='<td style="padding:10px 4px"><span style="background:'+daysBg+';color:'+daysFg+';padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700">'+daysVal+'d</span></td>';
+    // Status dropdown
+    h+='<td style="padding:10px 4px"><select class="toStatus" data-id="'+l.id+'" style="padding:4px 8px;background:#1e1f2e;border:1px solid #2d2e3f;border-radius:6px;color:#94a3b8;font-size:11px;cursor:pointer;outline:none"><option>Pendiente</option><option>Contactada</option><option>Interesada</option><option>No contesta</option><option>Cerrada</option></select></td>';
+    // Notes
+    h+='<td style="padding:10px 4px"><input class="toNote" data-id="'+l.id+'" placeholder="Note..." style="width:80px;padding:4px 8px;background:#1e1f2e;border:1px solid #2d2e3f;border-radius:6px;color:#e2e8f0;font-size:11px;outline:none"></td>';
+    // WhatsApp Send
+    h+='<td style="padding:10px 4px">'+(l.ph?'<a href="'+toWaLink(l.ph,l.nm)+'" target="_blank" style="display:inline-block;background:#22c55e;color:#fff;padding:6px 16px;border-radius:6px;font-size:11px;font-weight:700;text-decoration:none;white-space:nowrap;cursor:pointer;transition:background .2s" onmouseover="this.style.background=\'#16a34a\'" onmouseout="this.style.background=\'#22c55e\'">Send</a>':'<span style="color:#475569">—</span>')+'</td>';
     h+='</tr>';
   });
-  h+='</tbody></table>';w.innerHTML=h;
-  bindCheckIns(w);
-  document.getElementById('toCnt').textContent=fd.length+' takeover leads ('+fromJazmin.length+' Jazmin, '+fromYoana.length+' Yoana, '+fromOther.length+' other)';
+  h+='</tbody></table>';
+  w.innerHTML=h;
+  document.getElementById('toCnt').textContent=fd.length+' leads available (Jazmin: '+fromJazmin+', Yoana: '+fromYoana+', Other: '+fromOther+')';
 }
 
 function exAgCL(list,name){if(!list.length)return;var wb=XLSX.utils.book_new();
