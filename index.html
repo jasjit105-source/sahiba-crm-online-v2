@@ -1466,6 +1466,10 @@ function rebuildCallLists(){
       buyScore:l.sc||0,reasons:['⏰ '+hrs+'h since last contact','👤 Was: '+l.ag]});
   });
   takeoverCL.sort(function(a,b){return b.sc-a.sc||(a.hrs-b.hrs)});
+  // ══ REMOVE OVERLAP: anything in Takeover should NOT be in Nancy's Call List ══
+  var toIds={};
+  takeoverCL.forEach(function(l){toIds[l.id]=1});
+  nancyCL=nancyCL.filter(function(l){return !toIds[l.id]});
 }
 
 // Try loading saved data on startup, then try loading from database
@@ -1654,6 +1658,10 @@ function buildCRM(cR,mR,vR){
       buyScore:l.sc||0,reasons:['⏰ '+hrs+'h since last contact','👤 Was: '+l.ag]});
   });
   takeoverCL.sort(function(a,b){return b.sc-a.sc||(a.hrs-b.hrs)});
+  // ══ REMOVE OVERLAP: anything in Takeover should NOT be in Nancy's Call List ══
+  var toIdsBuild={};
+  takeoverCL.forEach(function(l){toIdsBuild[l.id]=1});
+  nancyCL=nancyCL.filter(function(l){return !toIdsBuild[l.id]});
   saveState();
   var lbLoc = LANG === 'es' ? 'es-MX' : 'en-US';
   document.getElementById('ll').textContent=t('lbl.last_loaded')+' '+new Date().toLocaleString(lbLoc,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
@@ -2017,8 +2025,8 @@ function rnNCL(){
 }
 function rnNCLT(){
   rnCLTable(nancyCL,'ncTbl','ncSummary','ncCnt','ncSch',
-    '📞 Nancy — Call List',
-    'Jazmin\'s old chats (80+ hours) that are NOT Customer + all remaining chats not in Jazmin\'s list');
+    '📞 Nancy — Tu Lista de Llamadas',
+    'Estos son TUS leads activos con mayor probabilidad de compra. Solo aparecen contactos tuyos y los no asignados frescos. NO incluye leads de Takeover. Filtros: 🔥 Hot 80+ = alta intención de compra, 🌡 Warm = interés moderado, 👤 Customers = ya compraron antes, 💰 Payment = mencionaron pago, 📱 Phone = tienen teléfono.');
 }
 
 // ══ JAZMIN CALL LIST ══
@@ -2069,7 +2077,7 @@ function rnTOT(){
   document.getElementById('toHeader').innerHTML=
     '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px">'+
     '<div><div style="font-size:22px;font-weight:800;color:#e2e8f0;letter-spacing:-0.5px">Takeover</div>'+
-    '<div style="font-size:12px;color:#64748b;margin-top:2px">Leads disponibles 80h+ sin respuesta</div></div>'+
+    '<div style="font-size:12px;color:#64748b;margin-top:2px;max-width:600px;line-height:1.5">Leads de Jazmin y Yoana con <b style="color:#f59e0b">80+ horas sin respuesta</b>. NO son clientes y NO han pagado. Están disponibles para que tú los tomes. Usa el botón <b style="color:#22c55e">Send</b> para enviarles el mensaje de seguimiento por WhatsApp. Filtra por agente con el dropdown.</div></div>'+
     '<button onclick="exAgCL(takeoverCL,\'Takeover\')" style="padding:8px 16px;background:#1e1f2e;border:1px solid #2d2e3f;border-radius:8px;color:#e2e8f0;font-size:12px;font-weight:600;cursor:pointer">⬇ Export</button></div>';
   // Stat cards
   document.getElementById('toStats').innerHTML=
