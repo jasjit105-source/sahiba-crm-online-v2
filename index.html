@@ -85,6 +85,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--bd);vertical-align:middl
 </div>
 <div class="app">
 <div class="hdr"><h1>👗 Sahiba <span>CRM</span></h1><span class="dt" id="dtL"></span><span class="ll" id="ll"></span><div id="langToggle" style="margin-left:auto;display:flex;gap:0;background:#f1f5f9;border-radius:8px;padding:3px;border:1px solid var(--bd)"><button id="langEN" style="padding:5px 12px;border:none;background:transparent;font-size:12px;font-weight:700;cursor:pointer;border-radius:6px;color:var(--t2)">🇬🇧 EN</button><button id="langES" style="padding:5px 12px;border:none;background:transparent;font-size:12px;font-weight:700;cursor:pointer;border-radius:6px;color:var(--t2)">🇲🇽 ES</button></div></div>
+<div id="agentBanner" style="display:none"></div>
 <div id="upSec" style="display:none">
 <div style="max-width:620px;margin:0 auto;display:flex;flex-direction:column;gap:18px">
 
@@ -524,6 +525,23 @@ if(IS_ADMIN){
     document.title='Sahiba CRM — '+name;
     var ll=document.getElementById('ll');
     if(ll)ll.innerHTML='👤 '+name+' • '+ll.textContent;
+    // ══ PERSONALIZED WELCOME BANNER ══
+    var agColors={nancy:['#7c3aed','#a78bfa','#ede9fe'],jazmin:['#0891b2','#67e8f9','#ecfeff'],yoana:['#be185d','#f9a8d4','#fdf2f8']};
+    var agEmoji={nancy:'👑',jazmin:'💎',yoana:'🌸'};
+    var agMotivation={nancy:'¡Hoy es un gran día para cerrar ventas!',jazmin:'¡Tus clientes te esperan, vamos con todo!',yoana:'¡Cada llamada es una oportunidad!'};
+    var clr=agColors[VIEW_MODE]||['#6366f1','#a5b4fc','#eef2ff'];
+    var emoji=agEmoji[VIEW_MODE]||'👗';
+    var motto=agMotivation[VIEW_MODE]||'¡Vamos!';
+    var banner=document.getElementById('agentBanner');
+    if(banner){
+      banner.style.display='block';
+      banner.innerHTML='<div style="background:linear-gradient(135deg,'+clr[0]+','+clr[0]+'cc);border-radius:14px;padding:20px 28px;margin-bottom:12px;display:flex;align-items:center;gap:16px;box-shadow:0 4px 20px '+clr[0]+'33">'+
+        '<div style="font-size:40px">'+emoji+'</div>'+
+        '<div><div style="font-size:22px;font-weight:800;color:#fff;letter-spacing:-0.5px">Bienvenida, '+name+'</div>'+
+        '<div style="font-size:13px;color:'+clr[1]+';margin-top:3px;font-weight:500">'+motto+'</div></div>'+
+        '<div style="margin-left:auto;font-size:11px;color:'+clr[1]+';text-align:right;line-height:1.6;opacity:.9">'+new Date().toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long',year:'numeric'})+'</div>'+
+        '</div>';
+    }
     var mui=document.getElementById('mainUI');
     if(mui)mui.style.display='block';
   },10);
