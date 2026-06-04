@@ -1745,7 +1745,18 @@ function dP(ms){var b=null;var re=/(?:\$)\s*(\d{4,5})\b|(\d{4,5})\s*(pesos?|mxn)
 function cSc(ws,ii,oi,pv){var s=0;if(ws)s+=SV.WI;if(ii>0){s+=SV.IIO;s+=ii*SV.IIE}if(oi>0)s+=oi*SV.IOE;if(pv>0)s+=SV.PD;return s}
 function gN(c,cl){var fn=(c[cl.fn]||'').trim(),ln=(c[cl.ln]||'').trim();if(fn||ln)return[fn,ln].filter(Boolean).join(' ');return(c[cl.nm]||'').trim()}
 function iC(l){return(l||'').toLowerCase().includes('customer')}
-function rA(e){return AG[e]?AG[e].n:'Unassigned'}
+function rA(e){
+  if(!e)return'Unassigned';
+  var v=e.trim().toLowerCase();
+  // Direct email match
+  if(AG[v])return AG[v].n;
+  if(AG[e])return AG[e].n;
+  // Display name match: "Jazmin Diaz", "jazmin", "Nancy Chat", etc.
+  if(v.includes('jazmin')||v.includes('jasmin')||v.includes('asesorce3'))return'Jazmin';
+  if(v.includes('nancy')||v.includes('sahibaleona'))return'Nancy';
+  if(v.includes('yoana')||v.includes('ymsahiba'))return'Yoana';
+  return'Unassigned';
+}
 function fD(d){if(!d||!(d instanceof Date))return'';return d.toLocaleString('es-MX',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}
 function fDF(d){if(!(d instanceof Date))return'';return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')}
 
