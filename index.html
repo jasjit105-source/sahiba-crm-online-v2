@@ -220,6 +220,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--bd);vertical-align:middl
 <div class="pn" id="pYoanacl"><div class="tb"><input type="text" class="sb" id="ycSch" placeholder="Search Yoana call list..."><div class="tr"><button class="bs bgn" id="ycDl">⬇ Download Yoana List</button></div></div><div id="ycSummary"></div><div class="tw" id="ycTbl"></div><div class="rc" id="ycCnt"></div></div>
 <div class="pn" id="pTakeover"><div id="toRoot" style="background:#12131a;border-radius:14px;padding:24px;color:#e2e8f0;font-family:system-ui,-apple-system,sans-serif;min-height:80vh"><div id="toHeader"></div><div id="toStats"></div><div id="toSearch" style="margin:16px 0;display:flex;gap:10px;align-items:center"><input type="text" id="toSch" placeholder="Search..." style="flex:1;padding:10px 16px;background:#1e1f2e;border:1px solid #2d2e3f;border-radius:8px;color:#e2e8f0;font-size:13px;outline:none"><select id="toFilter" style="padding:10px 14px;background:#1e1f2e;border:1px solid #2d2e3f;border-radius:8px;color:#e2e8f0;font-size:13px;outline:none;cursor:pointer"><option value="all">All</option><option value="jazmin">Jazmin</option><option value="yoana">Yoana</option><option value="unassigned">Unassigned</option></select><span id="toResultsCnt" style="font-size:12px;color:#64748b;white-space:nowrap">0 results</span></div><div id="toTbl" style="overflow-x:auto"></div><div id="toCnt" style="font-size:11px;color:#64748b;margin-top:8px"></div></div></div>
 <div class="pn" id="pMap"><div id="mapContent" style="background:var(--s);border:1px solid var(--bd);border-radius:var(--r);padding:20px;box-shadow:var(--sh)"><div id="mapChart" style="width:100%;height:500px"></div><div id="mapLegend" style="margin-top:14px"></div></div></div>
+<div class="pn" id="pActivity"><div class="tb"><div style="font-size:14px;color:var(--t1);font-weight:700">📊 Agent Activity Tracker</div><div class="tr"><button class="bs bsy" id="actRf">🔄 Refresh</button></div></div><div id="actContent" style="margin-top:14px"></div></div>
 <div class="pn" id="pUploadlog"><div class="tb"><div style="font-size:14px;color:var(--t1);font-weight:700">📜 Upload History</div><div class="tr"><button class="bs bsy" id="ulRf">🔄 Refresh</button></div></div><div id="ulContent" style="margin-top:14px"></div></div>
 <div class="pn" id="pCustomers">
 <div class="tb">
@@ -271,6 +272,7 @@ var I18N = {
   'nav.watchlist':     { en: 'Watchlist',      es: 'Vigilancia' },
   'nav.map':           { en: 'Map',            es: 'Mapa' },
   'nav.log':           { en: 'Log',            es: 'Bitácora' },
+  'nav.activity':      { en: 'Activity',       es: 'Actividad' },
   'nav.upload_log':    { en: 'Upload Log',     es: 'Historial' },
   'nav.takeover':      { en: 'Recuperar',      es: 'Recuperar' },
 
@@ -525,23 +527,157 @@ if(IS_ADMIN){
     document.title='Sahiba CRM — '+name;
     var ll=document.getElementById('ll');
     if(ll)ll.innerHTML='👤 '+name+' • '+ll.textContent;
+    // ══ 100 ROTATING MOTIVATIONAL QUOTES ══
+    var QUOTES=[
+      'Cada cliente que contactas es una puerta que se abre.',
+      'El seguimiento constante convierte leads en ventas.',
+      'Hoy es el mejor día para cerrar la venta que dejaste pendiente.',
+      'Una llamada más puede ser la diferencia entre un buen mes y un gran mes.',
+      'La constancia vende más que el talento.',
+      'Cada "no" te acerca más al próximo "sí".',
+      'Tu actitud determina tus resultados.',
+      'Los clientes compran confianza — tú la transmites.',
+      'No vendas productos, vende soluciones.',
+      'El éxito en ventas es un hábito, no un accidente.',
+      'Quien da seguimiento, cierra. Quien no, pierde.',
+      'Hoy alguien necesita exactamente lo que tú ofreces.',
+      'La venta comienza cuando el cliente dice "no".',
+      'Tu energía es contagiosa — úsala a tu favor.',
+      'Cada conversación es una oportunidad de oro.',
+      'No esperes al cliente perfecto. Haz perfecto tu servicio.',
+      'Las mejores vendedoras no nacen, se hacen con práctica.',
+      'Un mensaje de seguimiento puede reactivar una venta dormida.',
+      'Conecta antes de vender. Las personas compran de quien les cae bien.',
+      'Haz que cada cliente se sienta la persona más importante del día.',
+      'La diferencia entre una buena y una gran vendedora es el seguimiento.',
+      'Tus clientes no van a recordar lo que dijiste, van a recordar cómo los hiciste sentir.',
+      'Piensa en grande, empieza con la primera llamada.',
+      'Mientras más personas contactes, más suerte vas a tener.',
+      'El mejor momento para dar seguimiento fue ayer. El segundo mejor es ahora.',
+      'Sonríe al teléfono — el cliente lo nota.',
+      'No te rindas. La venta que no cierras hoy, la puedes cerrar mañana.',
+      'La preparación es la madre de la confianza.',
+      'Cada mañana es una nueva oportunidad de superar tus metas.',
+      'Las objeciones son señales de interés — aprovéchalas.',
+      'Sé la razón por la que un cliente regresa.',
+      'La venta no termina en el cierre. El postventa genera la recompra.',
+      'Un cliente satisfecho trae tres más.',
+      'Tu lista de llamadas es tu mapa del tesoro. Síguelo.',
+      'La paciencia con el cliente es inversión, no gasto.',
+      'No compitas con otras — compite con la versión de ayer de ti misma.',
+      'La clave está en escuchar más y hablar menos.',
+      'Cada lead merece al menos una segunda oportunidad.',
+      'El entusiasmo vende más que cualquier descuento.',
+      'Cuando sientas que no puedes, recuerda por qué empezaste.',
+      'Los detalles hacen la diferencia. Personaliza cada mensaje.',
+      'Hoy puedes romper tu récord de ventas.',
+      'La disciplina de hoy es el éxito de mañana.',
+      'Trata cada chat como si fuera tu cliente más importante.',
+      'Las ventas son un maratón, no un sprint. Paso a paso.',
+      'Un catálogo bien enviado vale más que mil palabras.',
+      'La confianza se construye mensaje a mensaje.',
+      'No vendas por vender. Asesora, y la venta llega sola.',
+      'El cliente que te escribe tiene interés. No lo dejes enfriar.',
+      'Hoy es un gran día para hacer historia.',
+      'La mejor publicidad es un cliente feliz.',
+      'Sé rápida en responder — la velocidad cierra ventas.',
+      'Cada imagen que envías es una oportunidad de enamorar.',
+      'El mayoreo empieza con una buena primera impresión.',
+      'No subestimes al cliente que pregunta mucho — ese es el que compra.',
+      'Tu conocimiento del producto es tu superpoder.',
+      'Los lunes son para empezar fuerte, no para quejarse.',
+      'La organización es la base de toda gran vendedora.',
+      'Aprende algo nuevo de cada cliente. Todos te enseñan algo.',
+      'Haz lo que otros no hacen y tendrás resultados que otros no tienen.',
+      'La venta es un arte. Tú eres la artista.',
+      'Celebra cada cierre, por pequeño que sea.',
+      'El cliente indeciso necesita tu guía, no tu presión.',
+      'Conoce tu inventario como la palma de tu mano.',
+      'Los clientes regresan donde se sienten valorados.',
+      'Un WhatsApp a tiempo vale más que diez tarde.',
+      'Sé la experta que tu cliente necesita.',
+      'El "déjame pensarlo" es una invitación a dar seguimiento.',
+      'Transforma problemas en oportunidades.',
+      'Lo que no mides, no mejora. Revisa tus números.',
+      'La primera impresión cuenta. Haz que cada mensaje cuente.',
+      'No dejes para mañana el lead que puedes contactar hoy.',
+      'Las ventas grandes empiezan con conversaciones pequeñas.',
+      'Sé persistente sin ser insistente. Hay una diferencia.',
+      'Cada rechazo es una lección, no una derrota.',
+      'Tu CRM es tu herramienta más poderosa. Úsala.',
+      'Los clientes compran cuando confían. Genera confianza.',
+      'Empieza el día con tu mejor energía.',
+      'La moda cambia, el buen servicio permanece.',
+      'Haz que tu cliente se sienta especial — porque lo es.',
+      'El secreto de vender es creer en lo que vendes.',
+      'Una clienta bien atendida es una embajadora de tu marca.',
+      'No te conformes con lo bueno cuando puedes lograr lo excelente.',
+      'Cada día es una página nueva. Escríbela con resultados.',
+      'La comunicación clara evita problemas y cierra ventas.',
+      'Sé proactiva. No esperes a que el cliente venga — búscalo tú.',
+      'El trabajo en equipo multiplica los resultados.',
+      'Mantén tu lista actualizada y nunca perderás una oportunidad.',
+      'Los mejores cierres nacen de las mejores relaciones.',
+      'La moda es pasión. Vende con pasión.',
+      'Tu meta de hoy es superar tu meta de ayer.',
+      'Un cliente mayorista puede cambiar tu mes entero.',
+      'La clave del éxito: consistencia, consistencia, consistencia.',
+      'Hoy vas a hacer algo increíble. Solo necesitas empezar.',
+      'Aprovecha cada minuto. El tiempo es tu recurso más valioso.',
+      'Escucha al cliente, entiende su necesidad, ofrece la solución.',
+      'Tú tienes el poder de hacer que alguien se sienta hermosa hoy.',
+      'Las metas no se logran solas. Se logran con acción diaria.',
+      'Cierra el día con más ventas de las que imaginaste en la mañana.',
+      'Eres más fuerte de lo que crees y vendes mejor de lo que piensas.'
+    ];
+    var dayOfYear=Math.floor((new Date()-new Date(new Date().getFullYear(),0,0))/864e5);
+    var agOff={nancy:0,jazmin:33,yoana:66};
+    var qIdx=(dayOfYear+(agOff[VIEW_MODE]||0))%QUOTES.length;
+    var motto=QUOTES[qIdx];
     // ══ PERSONALIZED WELCOME BANNER ══
     var agColors={nancy:['#7c3aed','#a78bfa','#ede9fe'],jazmin:['#0891b2','#67e8f9','#ecfeff'],yoana:['#be185d','#f9a8d4','#fdf2f8']};
     var agEmoji={nancy:'👑',jazmin:'💎',yoana:'🌸'};
-    var agMotivation={nancy:'¡Hoy es un gran día para cerrar ventas!',jazmin:'¡Tus clientes te esperan, vamos con todo!',yoana:'¡Cada llamada es una oportunidad!'};
     var clr=agColors[VIEW_MODE]||['#6366f1','#a5b4fc','#eef2ff'];
     var emoji=agEmoji[VIEW_MODE]||'👗';
-    var motto=agMotivation[VIEW_MODE]||'¡Vamos!';
     var banner=document.getElementById('agentBanner');
     if(banner){
       banner.style.display='block';
       banner.innerHTML='<div style="background:linear-gradient(135deg,'+clr[0]+','+clr[0]+'cc);border-radius:14px;padding:20px 28px;margin-bottom:12px;display:flex;align-items:center;gap:16px;box-shadow:0 4px 20px '+clr[0]+'33">'+
         '<div style="font-size:40px">'+emoji+'</div>'+
         '<div><div style="font-size:22px;font-weight:800;color:#fff;letter-spacing:-0.5px">Bienvenida, '+name+'</div>'+
-        '<div style="font-size:13px;color:'+clr[1]+';margin-top:3px;font-weight:500">'+motto+'</div></div>'+
+        '<div style="font-size:13px;color:'+clr[1]+';margin-top:3px;font-weight:500;font-style:italic">"'+motto+'"</div></div>'+
         '<div style="margin-left:auto;font-size:11px;color:'+clr[1]+';text-align:right;line-height:1.6;opacity:.9">'+new Date().toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long',year:'numeric'})+'</div>'+
         '</div>';
     }
+    // ══ ACTIVITY TRACKER — logs agent usage to server ══
+    var _trk={agent:name,events:[],start:Date.now()};
+    function trkSend(evt,detail){
+      _trk.events.push({e:evt,d:detail||null,t:Date.now()});
+      try{navigator.sendBeacon(API_BASE+'/activity',JSON.stringify({agent:_trk.agent,event:evt,detail:detail||null,ts:new Date().toISOString()}))}catch(ex){}
+    }
+    trkSend('page_open');
+    // Track tab clicks
+    var _origShP=typeof shP==='function'?shP:null;
+    document.addEventListener('click',function(e){
+      var navBtn=e.target.closest('.nv[data-n]');
+      if(navBtn)trkSend('tab_click',navBtn.dataset.n);
+      // Track WhatsApp/Call clicks
+      var link=e.target.closest('a[href]');
+      if(link){
+        var h=link.getAttribute('href')||'';
+        if(h.includes('wa.me'))trkSend('whatsapp_click');
+        else if(h.startsWith('tel:'))trkSend('call_click');
+      }
+      // Track search usage
+      if(e.target.tagName==='INPUT'&&e.target.type==='text'&&e.target.placeholder&&e.target.placeholder.toLowerCase().includes('search'))trkSend('search_use');
+    });
+    // Heartbeat every 5 min
+    setInterval(function(){trkSend('heartbeat',{minutes:Math.round((Date.now()-_trk.start)/60000)})},300000);
+    // Send session summary on page close
+    window.addEventListener('beforeunload',function(){
+      var mins=Math.round((Date.now()-_trk.start)/60000);
+      try{navigator.sendBeacon(API_BASE+'/activity',JSON.stringify({agent:_trk.agent,event:'session_end',detail:{duration_min:mins,total_events:_trk.events.length},ts:new Date().toISOString()}))}catch(ex){}
+    });
     var mui=document.getElementById('mainUI');
     if(mui)mui.style.display='block';
   },10);
@@ -1820,12 +1956,13 @@ function rnMUI(){document.getElementById('upSec').style.display='none';document.
   if(_sc){var ownCL=_sc.toLowerCase()+'cl';nvs=nvs.filter(function(n){return n.id==='reports'||n.id==='customers'||n.id===ownCL||(_sc==='Nancy'&&n.id==='takeover')})}
   // Admin-only: Upload Log tab
   if(typeof IS_ADMIN!=='undefined' && IS_ADMIN){
+    nvs.push({id:'activity',i:'📊',l:t('nav.activity')});
     nvs.push({id:'uploadlog',i:'📜',l:t('nav.upload_log')});
   }
   document.getElementById('nB').innerHTML=nvs.map(function(n){return'<button class="nv '+(cNav===n.id?'a':'')+'" data-n="'+n.id+'">'+n.i+' '+n.l+(n.c!=null?'<span class="ct">'+n.c+'</span>':'')+'</button>'}).join('');
   document.querySelectorAll('.nv[data-n]').forEach(function(b){b.onclick=function(){cNav=b.dataset.n;document.querySelectorAll('.nv[data-n]').forEach(function(x){x.classList.remove('a')});b.classList.add('a');shP()}});shP()}
 
-function shP(){document.querySelectorAll('.pn').forEach(function(p){p.classList.remove('av')});var id='p'+cNav.charAt(0).toUpperCase()+cNav.slice(1);var el=document.getElementById(id);if(el)el.classList.add('av');if(cNav==='reports')rnRp();else if(cNav==='customers')rnCust();else if(cNav==='agents')rnAg();else if(cNav==='watchlist')rnWl();else if(cNav==='log')rnLg();else if(cNav==='performance')rnPf();else if(cNav==='calllist')rnCL();else if(cNav==='nancycl')rnNCL();else if(cNav==='jazmincl')rnJCL();else if(cNav==='yoanacl')rnYCL();else if(cNav==='takeover')rnTO();else if(cNav==='map')rnMap();else if(cNav==='uploadlog')rnUL()}
+function shP(){document.querySelectorAll('.pn').forEach(function(p){p.classList.remove('av')});var id='p'+cNav.charAt(0).toUpperCase()+cNav.slice(1);var el=document.getElementById(id);if(el)el.classList.add('av');if(cNav==='reports')rnRp();else if(cNav==='customers')rnCust();else if(cNav==='agents')rnAg();else if(cNav==='watchlist')rnWl();else if(cNav==='log')rnLg();else if(cNav==='performance')rnPf();else if(cNav==='calllist')rnCL();else if(cNav==='nancycl')rnNCL();else if(cNav==='jazmincl')rnJCL();else if(cNav==='yoanacl')rnYCL();else if(cNav==='takeover')rnTO();else if(cNav==='map')rnMap();else if(cNav==='activity')rnAct();else if(cNav==='uploadlog')rnUL()}
 
 // ── REPORTS ──
 function rnRp(){var tbs=Object.keys(rp);if(!cRT)cRT=tbs[0];document.getElementById('rTabs').innerHTML=tbs.map(function(rt){return'<button class="nv '+(cRT===rt?'a':'')+'" data-t="'+rt+'">'+rpLabel(rt)+'<span class="ct">'+scopedReport(rt).length+'</span></button>'}).join('');document.querySelectorAll('[data-t]').forEach(function(b){b.onclick=function(){cRT=b.dataset.t;sC=-1;document.querySelectorAll('[data-t]').forEach(function(x){x.classList.remove('a')});b.classList.add('a');rnRT()}});document.getElementById('rSch').oninput=rnRT;document.getElementById('rSch').placeholder=t('btn.search');document.getElementById('exBtn').onclick=exXL;document.getElementById('nwBtn').onclick=function(){fl={c:null,m:null,v:null};document.getElementById('upSec').style.display='flex';document.getElementById('mainUI').style.display='none';var fs=document.getElementById('fSt');if(fs)fs.innerHTML='';if(typeof rBn!=='undefined'&&rBn){rBn.disabled=true;rBn.textContent='▶ Build CRM'}var fi=document.getElementById('fIn');if(fi)fi.value='';window.scrollTo({top:0,behavior:'smooth'})};rnRT()}
@@ -1924,6 +2061,78 @@ function rnWT(){var w=document.getElementById('wTbl'),q=(document.getElementById
 // ── LOG ──
 function rnLg(){document.getElementById('lSch').oninput=rnLE;document.getElementById('exLBtn').onclick=exLg;rnLE()}
 function rnLE(){var q=(document.getElementById('lSch').value||'').toLowerCase();var ents=[].concat(alog).reverse();gDL().reverse().forEach(function(dl){ents.push({t:dl.t,tp:'daily',ag:'System',dt:'Report: '+Object.entries(dl.ag||{}).map(function(x){return x[0]+':'+x[1].t+'leads'}).join(', ')})});ents.sort(function(a,b){return new Date(b.t)-new Date(a.t)});var fd=q?ents.filter(function(e){return(e.ag||'').toLowerCase().includes(q)||(e.dt||'').toLowerCase().includes(q)}):ents;if(!fd.length){document.getElementById('lEnt').innerHTML='<div class="em">No entries</div>';return}document.getElementById('lEnt').innerHTML=fd.slice(0,80).map(function(e){var ic=e.tp==='wa'?'📱':e.tp==='daily'?'📊':'📝';return'<div class="le"><span class="lt">'+ic+' '+new Date(e.t).toLocaleString('es-MX')+'</span> — <span class="la">'+e.ag+'</span><div class="lb2">'+e.dt+'</div></div>'}).join('')}
+
+// ── ACTIVITY TRACKER (admin only) ──
+async function rnAct(){
+  var w=document.getElementById('actContent');
+  w.innerHTML='<div style="text-align:center;padding:30px;color:var(--t2)">⏳ Loading activity data...</div>';
+  document.getElementById('actRf').onclick=rnAct;
+  try{
+    var r=await fetch(API_BASE+'/activity?days=7');
+    var data=await r.json();
+    if(!data.today&&!data.daily){w.innerHTML='<div style="padding:20px;color:var(--t2)">No activity data yet. Agents will start generating data when they open their CRM.</div>';return}
+    var h='';
+    // ── TODAY'S STATUS ──
+    h+='<div style="margin-bottom:24px"><div style="font-size:16px;font-weight:800;color:var(--t1);margin-bottom:12px">📅 Today</div>';
+    h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px">';
+    var agents=['Nancy','Jazmin','Yoana'];
+    var agClr={Nancy:'#7c3aed',Jazmin:'#0891b2',Yoana:'#be185d'};
+    agents.forEach(function(ag){
+      var found=null;
+      (data.today||[]).forEach(function(t){if(t.agent===ag)found=t});
+      var isOnline=found&&found.opens>0;
+      var statusDot=isOnline?'🟢':'🔴';
+      var statusTxt=isOnline?'Active today':'Not seen today';
+      var firstOpen=found&&found.first_open?new Date(found.first_open).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',timeZone:'America/Mexico_City'}):'—';
+      var lastSeen=found&&found.last_seen?new Date(found.last_seen).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',timeZone:'America/Mexico_City'}):'—';
+      var mins=found?(found.heartbeats||0)*5:0;
+      var timeStr=mins>=60?Math.floor(mins/60)+'h '+mins%60+'m':mins+'m';
+      h+='<div style="background:var(--s);border-radius:12px;padding:16px;border:1px solid var(--bd);border-left:4px solid '+agClr[ag]+'">';
+      h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div style="font-size:15px;font-weight:700;color:var(--t1)">'+ag+'</div><div style="font-size:12px">'+statusDot+' '+statusTxt+'</div></div>';
+      if(isOnline){
+        h+='<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;font-size:12px;color:var(--t2)">';
+        h+='<div>🕐 First open: <b style="color:var(--t1)">'+firstOpen+'</b></div>';
+        h+='<div>👁 Last seen: <b style="color:var(--t1)">'+lastSeen+'</b></div>';
+        h+='<div>⏱ Time on CRM: <b style="color:var(--t1)">~'+timeStr+'</b></div>';
+        h+='<div>📱 Opens: <b style="color:var(--t1)">'+(found.opens||0)+'</b></div>';
+        h+='<div>💬 WhatsApp clicks: <b style="color:#25d366">'+(found.wa||0)+'</b></div>';
+        h+='<div>📞 Call clicks: <b style="color:#3b82f6">'+(found.calls||0)+'</b></div>';
+        h+='</div>';
+      }
+      h+='</div>';
+    });
+    h+='</div></div>';
+    // ── 7-DAY HISTORY ──
+    h+='<div style="margin-bottom:24px"><div style="font-size:16px;font-weight:800;color:var(--t1);margin-bottom:12px">📈 Last 7 Days</div>';
+    h+='<div style="overflow-x:auto"><table style="width:100%;font-size:12px"><thead><tr style="background:var(--bg)">';
+    h+='<th style="padding:8px;text-align:left">Date</th><th style="padding:8px">Agent</th><th style="padding:8px">Opens</th><th style="padding:8px">Time (est)</th><th style="padding:8px">Tabs</th><th style="padding:8px">WhatsApp</th><th style="padding:8px">Calls</th><th style="padding:8px">Searches</th><th style="padding:8px">First</th><th style="padding:8px">Last</th>';
+    h+='</tr></thead><tbody>';
+    (data.daily||[]).forEach(function(d){
+      var mins=(d.heartbeats||0)*5;
+      var timeStr=mins>=60?Math.floor(mins/60)+'h '+mins%60+'m':mins+'m';
+      var fa=d.first_activity?new Date(d.first_activity).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',timeZone:'America/Mexico_City'}):'—';
+      var la=d.last_activity?new Date(d.last_activity).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',timeZone:'America/Mexico_City'}):'—';
+      var dayStr=d.day?new Date(d.day+'T12:00:00').toLocaleDateString('es-MX',{weekday:'short',day:'numeric',month:'short'}):'—';
+      var bgClr=agClr[d.agent]||'#6b7280';
+      h+='<tr style="border-bottom:1px solid var(--bd)">';
+      h+='<td style="padding:8px;font-weight:600">'+dayStr+'</td>';
+      h+='<td style="padding:8px;text-align:center"><span style="background:'+bgClr+'22;color:'+bgClr+';padding:2px 10px;border-radius:5px;font-weight:700;font-size:11px">'+d.agent+'</span></td>';
+      h+='<td style="padding:8px;text-align:center;font-weight:700">'+(d.opens||0)+'</td>';
+      h+='<td style="padding:8px;text-align:center">'+timeStr+'</td>';
+      h+='<td style="padding:8px;text-align:center">'+(d.tab_clicks||0)+'</td>';
+      h+='<td style="padding:8px;text-align:center;color:#25d366;font-weight:700">'+(d.whatsapp_clicks||0)+'</td>';
+      h+='<td style="padding:8px;text-align:center;color:#3b82f6;font-weight:700">'+(d.call_clicks||0)+'</td>';
+      h+='<td style="padding:8px;text-align:center">'+(d.searches||0)+'</td>';
+      h+='<td style="padding:8px;text-align:center;font-size:11px">'+fa+'</td>';
+      h+='<td style="padding:8px;text-align:center;font-size:11px">'+la+'</td>';
+      h+='</tr>';
+    });
+    h+='</tbody></table></div></div>';
+    w.innerHTML=h;
+  }catch(e){
+    w.innerHTML='<div style="padding:20px;color:#dc2626">❌ Error loading activity: '+e.message+'</div>';
+  }
+}
 
 // ── UPLOAD LOG (admin only) ──
 async function rnUL(){
