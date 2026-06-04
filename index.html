@@ -194,6 +194,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--bd);vertical-align:middl
 <option value="30">30 days</option>
 </select>
 <button id="rebuildBtn" style="padding:4px 14px;border-radius:6px;border:1px solid var(--ac);background:var(--ac);color:#fff;font-size:12px;font-weight:700;cursor:pointer">🔄 Rebuild</button>
+<button id="refreshBtn" style="padding:4px 14px;border-radius:6px;border:1px solid #22c55e;background:#22c55e;color:#fff;font-size:12px;font-weight:700;cursor:pointer">🔄 Actualizar Datos</button>
 <span id="daysInfo" style="font-size:11px;color:var(--t2)"></span>
 </div>
 <div class="nb" id="nB"></div>
@@ -1721,6 +1722,37 @@ function rnMUI(){document.getElementById('upSec').style.display='none';document.
       if(nw!==WD&&_lastC&&_lastM){WD=nw;buildCRM(_lastC,_lastM,_lastV||[])}
       else if(nw===WD){document.getElementById('daysInfo').textContent='Already showing '+WD+' days'}
       else{document.getElementById('daysInfo').textContent='⚠️ Upload CSVs first to rebuild'}
+    };
+  }
+  // ══ REFRESH BUTTON — re-fetches latest data from API ══
+  var refBtn=document.getElementById('refreshBtn');
+  if(refBtn){
+    refBtn.onclick=async function(){
+      refBtn.textContent='⏳ Actualizando...';refBtn.disabled=true;
+      var dInfo=document.getElementById('daysInfo');
+      try{
+        var d2=parseInt((document.getElementById('daysSelMain')||{}).value)||7;
+        if(dInfo)dInfo.textContent='📡 Descargando datos...';
+        var r=await fetch(API_BASE+'/data?days='+d2);
+        var data=await r.json();
+        if(data.status==='ok'&&data.contactsCSV&&data.contactCount>0){
+          var totalMsgs=data.messageCount||0;
+          if(dInfo)dInfo.textContent='📊 Cargando '+totalMsgs+' mensajes...';
+          var cRows=csvToObjects(data.contactsCSV||'');
+          var mRows=await fetchAllMessagesPaged(d2,function(soFar){
+            var pct=totalMsgs?Math.min(100,Math.round(soFar/totalMsgs*100)):0;
+            if(dInfo)dInfo.textContent='📊 '+soFar+' / '+totalMsgs+' ('+pct+'%)...';
+          });
+          _lastC=cRows;_lastM=mRows;_lastV=[];
+          buildCRM(cRows,mRows,[]);
+          if(dInfo)dInfo.textContent='✅ Datos actualizados — '+cRows.length+' contactos, '+mRows.length+' mensajes';
+        }else{
+          if(dInfo)dInfo.textContent='⚠️ No hay datos nuevos disponibles';
+        }
+      }catch(e){
+        if(dInfo)dInfo.textContent='❌ Error: '+e.message;
+      }
+      refBtn.textContent='🔄 Actualizar Datos';refBtn.disabled=false;
     };
   }
   var ttl=Object.values(aq).reduce(function(s,a){return s+a.length},0);
