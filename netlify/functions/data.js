@@ -48,13 +48,44 @@ function csvCell(v) {
   return s;
 }
 
+// Parse a CSV line respecting quoted fields (handles commas inside quotes)
+function parseCSVLine(line) {
+  const cells = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQuotes) {
+      if (ch === '"' && line[i + 1] === '"') {
+        current += '"';
+        i++; // skip escaped quote
+      } else if (ch === '"') {
+        inQuotes = false;
+      } else {
+        current += ch;
+      }
+    } else {
+      if (ch === '"') {
+        inQuotes = true;
+      } else if (ch === ',') {
+        cells.push(current);
+        current = '';
+      } else {
+        current += ch;
+      }
+    }
+  }
+  cells.push(current);
+  return cells;
+}
+
 // Slim a contacts CSV to only the columns the dashboard reads, and only
 // rows whose ContactID is in the active set (those with messages in window).
 function slimContactsCsv(fullCsv, activeIds) {
   const lines = fullCsv.split('\n');
   if (lines.length < 2) return { csv: '', count: 0 };
 
-  const headerCells = lines[0].split(',').map(s => s.replace(/^"|"$/g, '').trim());
+  const headerCells = parseCSVLine(lines[0]).map(s => s.trim());
   const headerLower = headerCells.map(s => s.toLowerCase());
 
   function findCol(names) {
@@ -83,13 +114,13 @@ function slimContactsCsv(fullCsv, activeIds) {
   for (let i = 1; i < lines.length; i++) {
     const ln = lines[i];
     if (!ln) continue;
-    const cells = ln.split(',');
-    const cid = idCol >= 0 ? (cells[idCol] || '').replace(/^"|"$/g, '').trim() : '';
+    const cells = parseCSVLine(ln);
+    const cid = idCol >= 0 ? (cells[idCol] || '').trim() : '';
     if (!activeIds.has(cid)) continue;
 
     const outCells = colMap.map(c => {
       if (c.src < 0) return '';
-      const v = (cells[c.src] || '').replace(/^"|"$/g, '');
+      const v = (cells[c.src] || '').trim();
       return csvCell(v);
     });
     out.push(outCells.join(','));
