@@ -62,6 +62,11 @@
   to = "/.netlify/functions/activity"
   status = 200
 
+[[redirects]]
+  from = "/api/ceo-tasks"
+  to = "/.netlify/functions/ceo-tasks"
+  status = 200
+
 # ─── CACHE HEADERS ──────────────────────────────────────────────────────
 # Force browsers to always re-fetch HTML and API responses.
 # Without this, iOS Safari aggressively caches the dashboard and agents
