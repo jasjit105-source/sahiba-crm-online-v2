@@ -955,7 +955,7 @@ function renderCeoPanel(){
   _ceoCaret=_ceoKeepFocus&&prevSch?prevSch.selectionStart:qRaw.length;
   h+='<div class="tb" style="margin-bottom:10px"><div style="display:flex;gap:6px;flex-wrap:wrap" id="ceoFiltBar">';
   filters.forEach(function(f){h+=pill(f.id,f.l,_ceoFilter===f.id)});
-  h+=pill('open',_ceoOpenOnly?'🟢 Solo abiertas':'Todas (abiertas+hechas)',_ceoOpenOnly);
+  h+=pill('open','🟢 Solo abiertas',_ceoOpenOnly);
   h+='</div><input type="text" class="sb" id="ceoSch" placeholder="Buscar nombre o teléfono..." value="'+escHtml(qRaw)+'"></div>';
   var rows=(_ceoTasks||[]).slice();
   if(_ceoOpenOnly)rows=rows.filter(function(t){return t.status==='open'&&!t.hecho});
