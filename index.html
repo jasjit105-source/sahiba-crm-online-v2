@@ -222,6 +222,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--bd);vertical-align:middl
 <div class="pn" id="pMap"><div id="mapContent" style="background:var(--s);border:1px solid var(--bd);border-radius:var(--r);padding:20px;box-shadow:var(--sh)"><div id="mapChart" style="width:100%;height:500px"></div><div id="mapLegend" style="margin-top:14px"></div></div></div>
 <div class="pn" id="pActivity"><div class="tb"><div style="font-size:14px;color:var(--t1);font-weight:700">📊 Agent Activity Tracker</div><div class="tr"><button class="bs bsy" id="actRf">🔄 Refresh</button></div></div><div id="actContent" style="margin-top:14px"></div></div>
 <div class="pn" id="pUploadlog"><div class="tb"><div style="font-size:14px;color:var(--t1);font-weight:700">📜 Upload History</div><div class="tr"><button class="bs bsy" id="ulRf">🔄 Refresh</button></div></div><div id="ulContent" style="margin-top:14px"></div></div>
+<div class="pn" id="pCeotasks"><div id="ceoRoot"></div></div>
 <div class="pn" id="pCustomers">
 <div class="tb">
 <div style="display:flex;gap:6px;flex-wrap:wrap" id="custFilters">
@@ -275,6 +276,7 @@ var I18N = {
   'nav.activity':      { en: 'Activity',       es: 'Actividad' },
   'nav.upload_log':    { en: 'Upload Log',     es: 'Historial' },
   'nav.takeover':      { en: 'Recuperar',      es: 'Recuperar' },
+  'nav.ceo_tasks':     { en: 'Morning tasks',  es: 'Tareas mañana' },
 
   // KPI tiles
   'kpi.hot_customers': { en: 'Hot Customers',  es: 'Clientes Calientes' },
@@ -699,7 +701,7 @@ if(IS_ADMIN){
 function apiPost(path,body){
   var opts={method:'POST',headers:{'Content-Type':'application/json'}};
   // Upload requires APP_TOKEN; checkin/data don't
-  if(path.indexOf('/upload')>=0||path.indexOf('/query')>=0||path.indexOf('/sales-sync')>=0){
+  if(path.indexOf('/upload')>=0||path.indexOf('/query')>=0||path.indexOf('/sales-sync')>=0||path.indexOf('/ceo-tasks')>=0){
     opts.headers['Authorization']='Bearer '+APP_TOKEN;
   }
   if(body)opts.body=JSON.stringify(body);
@@ -762,6 +764,270 @@ function bindCheckIns(container){
       bindCheckIns(done.parentElement);
     };
   });
+}
+
+// ═══ TAREAS MAÑANA / NOTA CEO ═══
+// Server-persisted in Neon ceo_tasks. Never writes leads.notes.
+var _ceoTasks=[];
+var _ceoFilter='mine';
+var _ceoOpenOnly=true;
+var _ceoKeepFocus=false;
+var _ceoCaret=0;
+function normPh10(raw){
+  if(!raw)return'';
+  var d=String(raw).replace(/\D/g,'');
+  if(!d)return'';
+  if(d.length>10)d=d.slice(-10);
+  return d.length===10?d:'';
+}
+function escHtml(s){
+  return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function ceoOpenCount(){
+  return (_ceoTasks||[]).filter(function(t){return t&&t.status==='open'&&!t.hecho}).length;
+}
+function ceoOpenForLead(lead){
+  if(!lead||!_ceoTasks||!_ceoTasks.length)return null;
+  var ph=normPh10(lead.ph);
+  var id=lead.id||'';
+  for(var i=0;i<_ceoTasks.length;i++){
+    var t=_ceoTasks[i];
+    if(!t||t.hecho||t.status==='done')continue;
+    if(id&&t.contact_id&&String(t.contact_id)===String(id))return t;
+    if(ph&&t.phone_normalized&&t.phone_normalized===ph)return t;
+  }
+  return null;
+}
+function ceoNotaCell(lead){
+  var task=ceoOpenForLead(lead);
+  if(!task)return'<td></td>';
+  return'<td style="max-width:240px;white-space:normal">'+ceoNoteCard(task)+'</td>';
+}
+function ceoNoteCard(task){
+  var txt=escHtml(task.nota_ceo||'');
+  return'<div style="background:#fffbeb;border:1px solid #f59e0b;border-radius:6px;padding:5px 7px;min-width:140px">'+
+    '<div style="font-size:9px;font-weight:800;color:#92400e;margin-bottom:2px">📝 Nota CEO</div>'+
+    '<div style="font-size:10px;color:#78350f;white-space:pre-wrap;max-height:80px;overflow:auto;line-height:1.35">'+txt+'</div>'+
+    '<button type="button" class="ceoHechoBtn" data-id="'+task.id+'" style="margin-top:5px;background:#16a34a;color:#fff;border:0;padding:3px 8px;border-radius:4px;font-size:10px;font-weight:700;cursor:pointer">Hecho</button>'+
+    '</div>';
+}
+function bindCeoHecho(container){
+  (container||document).querySelectorAll('.ceoHechoBtn').forEach(function(btn){
+    btn.onclick=function(e){
+      e.stopPropagation();
+      markCeoHecho(btn.dataset.id);
+    };
+  });
+}
+async function loadCeoTasksQuiet(){
+  try{
+    var r=await fetch(API_BASE+'/ceo-tasks?status=all');
+    var d=await r.json();
+    _ceoTasks=(d&&d.tasks)||[];
+  }catch(e){
+    _ceoTasks=_ceoTasks||[];
+  }
+  return _ceoTasks;
+}
+function markCeoHecho(id){
+  if(!id)return;
+  var por=AGENT_DISPLAY_NAME||(IS_ADMIN?'admin':'agente');
+  fetch(API_BASE+'/ceo-tasks',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({action:'hecho',id:id,hecho_por:por})
+  }).then(function(r){return r.json()}).then(function(d){
+    if(d&&d.task){
+      _ceoTasks=_ceoTasks.map(function(t){return t.id===d.task.id?d.task:t});
+    }else{
+      return loadCeoTasksQuiet();
+    }
+  }).then(function(){
+    if(typeof shP==='function')shP();
+  }).catch(function(e){console.error('Hecho error:',e)});
+}
+function allKnownLeads(){
+  var seen={},out=[];
+  function add(l){
+    if(!l||!l.id||seen[l.id])return;
+    seen[l.id]=1;out.push(l);
+  }
+  (callList||[]).forEach(add);
+  (nancyCL||[]).forEach(add);
+  (jazminCL||[]).forEach(add);
+  (yoanaCL||[]).forEach(add);
+  for(var k in rp){if(k!=='Cities')(rp[k]||[]).forEach(add)}
+  for(var a in aq){(aq[a]||[]).forEach(add)}
+  return out;
+}
+function lookupLeadByPhone(phone){
+  var ph=normPh10(phone);
+  if(!ph)return null;
+  var list=allKnownLeads();
+  for(var i=0;i<list.length;i++){
+    if(normPh10(list[i].ph)===ph)return list[i];
+  }
+  return null;
+}
+async function saveCeoNote(){
+  var phoneEl=document.getElementById('ceoPhone');
+  var noteEl=document.getElementById('ceoNote');
+  var agEl=document.getElementById('ceoAgent');
+  var nameEl=document.getElementById('ceoName');
+  var cidEl=document.getElementById('ceoContactId');
+  var st=document.getElementById('ceoWriteSt');
+  var phone=(phoneEl&&phoneEl.value||'').trim();
+  var note=(noteEl&&noteEl.value||'').trim();
+  var agent=(agEl&&agEl.value||'').trim();
+  var name=(nameEl&&nameEl.value||'').trim();
+  var contactId=(cidEl&&cidEl.value||'').trim();
+  if(!phone&&!contactId){if(st)st.textContent='Escribe un teléfono o contact_id';return}
+  if(!note){if(st)st.textContent='Escribe la nota del CEO';return}
+  var lead=lookupLeadByPhone(phone);
+  if(lead){
+    if(!name)name=lead.nm||'';
+    if(!contactId)contactId=lead.id||'';
+    if(!agent&&lead.ag)agent=String(lead.ag).toLowerCase();
+  }
+  if(st)st.textContent='Guardando...';
+  try{
+    var r=await apiPost('/ceo-tasks',{action:'upsert',phone:phone,contact_id:contactId,name:name,agent:agent,nota_ceo:note});
+    var d=await r.json();
+    if(!r.ok||(d&&d.error)){if(st)st.textContent='❌ '+(d&&d.error||('HTTP '+r.status));return}
+    if(d&&d.task){
+      var found=false;
+      _ceoTasks=_ceoTasks.map(function(t){if(t.id===d.task.id){found=true;return d.task}return t});
+      if(!found)_ceoTasks.unshift(d.task);
+    }else{
+      await loadCeoTasksQuiet();
+    }
+    if(noteEl)noteEl.value='';
+    if(st)st.textContent='✅ Nota guardada (se agregó, no se borró lo anterior)';
+    rnCeo();
+  }catch(e){
+    if(st)st.textContent='❌ '+e.message;
+  }
+}
+function rnCeo(){
+  var root=document.getElementById('ceoRoot');
+  if(!root)return;
+  loadCeoTasksQuiet().then(function(){renderCeoPanel()});
+}
+function renderCeoPanel(){
+  var root=document.getElementById('ceoRoot');
+  if(!root)return;
+  var isAdmin=typeof IS_ADMIN!=='undefined'&&IS_ADMIN;
+  var mine=VIEW_MODE||'';
+  if(isAdmin&&_ceoFilter==='mine')_ceoFilter='all';
+  var filters=[
+    !isAdmin?{id:'mine',l:'👤 Mías'}:null,
+    {id:'jazmin',l:'Jazmin'},
+    {id:'nancy',l:'Nancy'},
+    {id:'yoana',l:'Yoana'},
+    isAdmin?{id:'all',l:'Todas'}:null
+  ].filter(Boolean);
+  function pill(id,label,active){
+    return'<button type="button" class="nv ceoFilt '+(active?'a':'')+'" data-cf="'+id+'" style="margin:0">'+label+'</button>';
+  }
+  var h='<div style="background:linear-gradient(135deg,#7c2d12,#b45309);color:#fff;border-radius:12px;padding:16px 18px;margin-bottom:12px">'+
+    '<div style="font-size:18px;font-weight:800">🌅 '+t('nav.ceo_tasks')+'</div>'+
+    '<div style="font-size:12px;opacity:.9;margin-top:4px;max-width:720px;line-height:1.45">Notas de la mañana del CEO. Las chicas ven la Nota CEO en su lista de llamadas y marcan <b>Hecho</b> cuando ya la atendieron. No se mezclan con los comentarios de la chica.</div>'+
+    '</div>';
+  if(isAdmin){
+    h+='<div style="background:var(--s);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:12px">'+
+      '<div style="font-size:13px;font-weight:700;margin-bottom:8px">✍️ Escribir Nota CEO</div>'+
+      '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px">'+
+      '<input id="ceoPhone" class="sb" style="max-width:none" placeholder="Teléfono">'+
+      '<input id="ceoName" class="sb" style="max-width:none" placeholder="Nombre (opcional)">'+
+      '<select id="ceoAgent" class="sb" style="max-width:none"><option value="">Agente (auto)</option><option value="jazmin">Jazmin</option><option value="nancy">Nancy</option><option value="yoana">Yoana</option></select>'+
+      '</div>'+
+      '<input id="ceoContactId" type="hidden">'+
+      '<textarea id="ceoNote" placeholder="Ej. Llamar a María, pide mayoreo de vestidos 517VE" style="width:100%;min-height:72px;padding:8px 10px;border:1px solid var(--bd);border-radius:8px;font-family:inherit;font-size:13px;resize:vertical"></textarea>'+
+      '<div style="display:flex;align-items:center;gap:10px;margin-top:8px">'+
+      '<button type="button" class="bs bac" id="ceoSaveBtn">💾 Guardar nota</button>'+
+      '<span id="ceoWriteSt" style="font-size:12px;color:var(--t2)"></span>'+
+      '</div>'+
+      '<div style="font-size:11px;color:var(--t2);margin-top:6px">Si el teléfono ya tiene nota abierta, se <b>agrega</b> con hora de México. No se borra lo anterior ni las notas de las chicas.</div>'+
+      '</div>';
+  }
+  var prevSch=document.getElementById('ceoSch');
+  var qRaw=prevSch?prevSch.value:'';
+  var q=qRaw.toLowerCase();
+  _ceoKeepFocus=document.activeElement&&document.activeElement.id==='ceoSch';
+  _ceoCaret=_ceoKeepFocus&&prevSch?prevSch.selectionStart:qRaw.length;
+  h+='<div class="tb" style="margin-bottom:10px"><div style="display:flex;gap:6px;flex-wrap:wrap" id="ceoFiltBar">';
+  filters.forEach(function(f){h+=pill(f.id,f.l,_ceoFilter===f.id)});
+  h+=pill('open',_ceoOpenOnly?'🟢 Solo abiertas':'Todas (abiertas+hechas)',_ceoOpenOnly);
+  h+='</div><input type="text" class="sb" id="ceoSch" placeholder="Buscar nombre o teléfono..." value="'+escHtml(qRaw)+'"></div>';
+  var rows=(_ceoTasks||[]).slice();
+  if(_ceoOpenOnly)rows=rows.filter(function(t){return t.status==='open'&&!t.hecho});
+  if(_ceoFilter==='mine'&&mine)rows=rows.filter(function(t){return t.agent===mine});
+  else if(_ceoFilter==='jazmin'||_ceoFilter==='nancy'||_ceoFilter==='yoana')rows=rows.filter(function(t){return t.agent===_ceoFilter});
+  if(q)rows=rows.filter(function(t){return(t.name||'').toLowerCase().indexOf(q)>=0||(t.phone||'').indexOf(q)>=0||(t.nota_ceo||'').toLowerCase().indexOf(q)>=0});
+  var openN=rows.filter(function(t){return t.status==='open'&&!t.hecho}).length;
+  h+='<div style="font-size:12px;color:var(--t2);margin-bottom:8px">'+openN+' abiertas · '+rows.length+' en este filtro</div>';
+  if(!rows.length){
+    h+='<div class="em"><div class="ei">🌅</div><p>No hay tareas'+( _ceoOpenOnly?' abiertas':'')+' en este filtro</p></div>';
+    root.innerHTML=h;
+    bindCeoPanel();
+    return;
+  }
+  h+='<div class="tw"><table><thead><tr><th>Lead</th><th>Agente</th><th>Nota CEO</th><th>Estado</th><th>Hecho</th></tr></thead><tbody>';
+  rows.forEach(function(task){
+    var done=task.hecho||task.status==='done';
+    var agLbl=task.agent?task.agent.charAt(0).toUpperCase()+task.agent.slice(1):'—';
+    h+='<tr>';
+    h+='<td><div class="cn">'+(escHtml(task.name)||'—')+'</div><div class="cfn">'+(escHtml(task.phone)||'')+'</div></td>';
+    h+='<td><span class="bd ba">'+escHtml(agLbl)+'</span></td>';
+    h+='<td style="white-space:pre-wrap;max-width:420px;font-size:11px;color:#78350f;background:#fffbeb">'+escHtml(task.nota_ceo)+'</td>';
+    if(done){
+      h+='<td><span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:700">Hecho</span>'+
+        '<div style="font-size:10px;color:var(--t2);margin-top:3px">'+escHtml(task.hecho_por||'')+(task.hecho_at_mx?' · '+escHtml(task.hecho_at_mx):'')+'</div></td>';
+      h+='<td></td>';
+    }else{
+      h+='<td><span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:700">Abierta</span></td>';
+      h+='<td><button type="button" class="ceoHechoBtn" data-id="'+task.id+'" style="background:#16a34a;color:#fff;border:0;padding:5px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer">Hecho</button></td>';
+    }
+    h+='</tr>';
+  });
+  h+='</tbody></table></div>';
+  root.innerHTML=h;
+  bindCeoPanel();
+}
+function bindCeoPanel(){
+  var bar=document.getElementById('ceoFiltBar');
+  if(bar){
+    bar.querySelectorAll('.ceoFilt').forEach(function(b){
+      b.onclick=function(){
+        var id=b.dataset.cf;
+        if(id==='open'){_ceoOpenOnly=!_ceoOpenOnly}
+        else{_ceoFilter=id}
+        renderCeoPanel();
+      };
+    });
+  }
+  var sch=document.getElementById('ceoSch');
+  if(sch){
+    sch.oninput=function(){renderCeoPanel()};
+    if(_ceoKeepFocus){
+      sch.focus();
+      try{sch.setSelectionRange(_ceoCaret,_ceoCaret)}catch(e){}
+    }
+  }
+  var save=document.getElementById('ceoSaveBtn');
+  if(save)save.onclick=saveCeoNote;
+  var phoneEl=document.getElementById('ceoPhone');
+  if(phoneEl){
+    phoneEl.onchange=phoneEl.onblur=function(){
+      var lead=lookupLeadByPhone(phoneEl.value);
+      if(!lead)return;
+      var nameEl=document.getElementById('ceoName');
+      var agEl=document.getElementById('ceoAgent');
+      var cidEl=document.getElementById('ceoContactId');
+      if(nameEl&&!nameEl.value)nameEl.value=lead.nm||'';
+      if(cidEl)cidEl.value=lead.id||'';
+      if(agEl&&!agEl.value&&lead.ag&&lead.ag!=='Unassigned')agEl.value=String(lead.ag).toLowerCase();
+    };
+  }
+  bindCeoHecho(document.getElementById('ceoRoot'));
 }
 // ══════ SHARED CSV PARSE HELPERS ══════
 // Hoisted out of loadFromDB / agent autoloader so both can share them.
@@ -837,6 +1103,7 @@ async function loadFromDB(){
       st.innerHTML='📊 Loading messages '+soFar+' / '+totalMsgs+' ('+pct+'%)...';
     });
     if(typeof _lastC!=='undefined'){_lastC=cRows;_lastM=mRows;_lastV=[]}
+    await loadCeoTasksQuiet();
     buildCRM(cRows,mRows,[]);
     var newBadge=data.newContactCount>0?' | <span style="color:var(--or);font-weight:700">🆕 '+data.newContactCount+' new contacts</span>':'';
     var syncDate=data.lastUpload?new Date(data.lastUpload).toLocaleString('es-MX',{timeZone:'America/Mexico_City'}):'—';
@@ -1691,6 +1958,7 @@ if(loadState()&&Object.keys(rp).length>0){rebuildCallLists();rnMUI()}else{
           if(st)st.innerHTML='📊 '+soFar+' / '+totalMsgs+' ('+pct+'%)...';
         });
         _lastC=cRows;_lastM=mRows;_lastV=[];
+        await loadCeoTasksQuiet();
         buildCRM(cRows,mRows,[]);
         if(st)st.innerHTML='';
       }else{
@@ -1941,6 +2209,7 @@ function rnMUI(){document.getElementById('upSec').style.display='none';document.
             if(dInfo)dInfo.textContent='📊 '+soFar+' / '+totalMsgs+' ('+pct+'%)...';
           });
           _lastC=cRows;_lastM=mRows;_lastV=[];
+          await loadCeoTasksQuiet();
           buildCRM(cRows,mRows,[]);
           if(dInfo)dInfo.textContent='✅ Datos actualizados — '+cRows.length+' contactos, '+mRows.length+' mensajes';
         }else{
@@ -1963,8 +2232,9 @@ function rnMUI(){document.getElementById('upSec').style.display='none';document.
   var jcCnt=(typeof jazminCL!=='undefined')?jazminCL.length:0;
   var ycCnt=(typeof yoanaCL!=='undefined')?yoanaCL.length:0;
   var toCnt=(typeof takeoverCL!=='undefined')?takeoverCL.length:0;
-  var nvs=[{id:'reports',i:'📊',l:t('nav.reports')},{id:'customers',i:'💎',l:t('nav.customers')},{id:'agents',i:'👥',l:t('nav.agents'),c:ttl},{id:'calllist',i:'📞',l:t('nav.master_calls'),c:clCnt},{id:'nancycl',i:'📞',l:t('nav.nancy_calls'),c:ncCnt},{id:'jazmincl',i:'📞',l:t('nav.jazmin_calls'),c:jcCnt},{id:'yoanacl',i:'📞',l:t('nav.yoana_calls'),c:ycCnt},{id:'takeover',i:'🔄',l:t('nav.takeover'),c:toCnt},{id:'performance',i:'📈',l:t('nav.performance')},{id:'watchlist',i:'🔍',l:t('nav.watchlist'),c:wl.length},{id:'map',i:'🗺️',l:t('nav.map')},{id:'log',i:'📝',l:t('nav.log'),c:alog.length}];
-  if(_sc){var ownCL=_sc.toLowerCase()+'cl';nvs=nvs.filter(function(n){return n.id==='reports'||n.id==='customers'||n.id===ownCL||(_sc==='Nancy'&&n.id==='takeover')})}
+  var ceoCnt=ceoOpenCount();
+  var nvs=[{id:'reports',i:'📊',l:t('nav.reports')},{id:'customers',i:'💎',l:t('nav.customers')},{id:'agents',i:'👥',l:t('nav.agents'),c:ttl},{id:'calllist',i:'📞',l:t('nav.master_calls'),c:clCnt},{id:'nancycl',i:'📞',l:t('nav.nancy_calls'),c:ncCnt},{id:'jazmincl',i:'📞',l:t('nav.jazmin_calls'),c:jcCnt},{id:'yoanacl',i:'📞',l:t('nav.yoana_calls'),c:ycCnt},{id:'ceotasks',i:'🌅',l:t('nav.ceo_tasks'),c:ceoCnt},{id:'takeover',i:'🔄',l:t('nav.takeover'),c:toCnt},{id:'performance',i:'📈',l:t('nav.performance')},{id:'watchlist',i:'🔍',l:t('nav.watchlist'),c:wl.length},{id:'map',i:'🗺️',l:t('nav.map')},{id:'log',i:'📝',l:t('nav.log'),c:alog.length}];
+  if(_sc){var ownCL=_sc.toLowerCase()+'cl';nvs=nvs.filter(function(n){return n.id==='reports'||n.id==='customers'||n.id===ownCL||n.id==='ceotasks'||(_sc==='Nancy'&&n.id==='takeover')})}
   // Admin-only: Upload Log tab
   if(typeof IS_ADMIN!=='undefined' && IS_ADMIN){
     nvs.push({id:'activity',i:'📊',l:t('nav.activity')});
@@ -1973,7 +2243,7 @@ function rnMUI(){document.getElementById('upSec').style.display='none';document.
   document.getElementById('nB').innerHTML=nvs.map(function(n){return'<button class="nv '+(cNav===n.id?'a':'')+'" data-n="'+n.id+'">'+n.i+' '+n.l+(n.c!=null?'<span class="ct">'+n.c+'</span>':'')+'</button>'}).join('');
   document.querySelectorAll('.nv[data-n]').forEach(function(b){b.onclick=function(){cNav=b.dataset.n;document.querySelectorAll('.nv[data-n]').forEach(function(x){x.classList.remove('a')});b.classList.add('a');shP()}});shP()}
 
-function shP(){document.querySelectorAll('.pn').forEach(function(p){p.classList.remove('av')});var id='p'+cNav.charAt(0).toUpperCase()+cNav.slice(1);var el=document.getElementById(id);if(el)el.classList.add('av');if(cNav==='reports')rnRp();else if(cNav==='customers')rnCust();else if(cNav==='agents')rnAg();else if(cNav==='watchlist')rnWl();else if(cNav==='log')rnLg();else if(cNav==='performance')rnPf();else if(cNav==='calllist')rnCL();else if(cNav==='nancycl')rnNCL();else if(cNav==='jazmincl')rnJCL();else if(cNav==='yoanacl')rnYCL();else if(cNav==='takeover')rnTO();else if(cNav==='map')rnMap();else if(cNav==='activity')rnAct();else if(cNav==='uploadlog')rnUL()}
+function shP(){document.querySelectorAll('.pn').forEach(function(p){p.classList.remove('av')});var id='p'+cNav.charAt(0).toUpperCase()+cNav.slice(1);var el=document.getElementById(id);if(el)el.classList.add('av');if(cNav==='reports')rnRp();else if(cNav==='customers')rnCust();else if(cNav==='agents')rnAg();else if(cNav==='watchlist')rnWl();else if(cNav==='log')rnLg();else if(cNav==='performance')rnPf();else if(cNav==='calllist')rnCL();else if(cNav==='nancycl')rnNCL();else if(cNav==='jazmincl')rnJCL();else if(cNav==='yoanacl')rnYCL();else if(cNav==='ceotasks')rnCeo();else if(cNav==='takeover')rnTO();else if(cNav==='map')rnMap();else if(cNav==='activity')rnAct();else if(cNav==='uploadlog')rnUL()}
 
 // ── REPORTS ──
 function rnRp(){var tbs=Object.keys(rp);if(!cRT)cRT=tbs[0];document.getElementById('rTabs').innerHTML=tbs.map(function(rt){return'<button class="nv '+(cRT===rt?'a':'')+'" data-t="'+rt+'">'+rpLabel(rt)+'<span class="ct">'+scopedReport(rt).length+'</span></button>'}).join('');document.querySelectorAll('[data-t]').forEach(function(b){b.onclick=function(){cRT=b.dataset.t;sC=-1;document.querySelectorAll('[data-t]').forEach(function(x){x.classList.remove('a')});b.classList.add('a');rnRT()}});document.getElementById('rSch').oninput=rnRT;document.getElementById('rSch').placeholder=t('btn.search');document.getElementById('exBtn').onclick=exXL;document.getElementById('nwBtn').onclick=function(){fl={c:null,m:null,v:null};document.getElementById('upSec').style.display='flex';document.getElementById('mainUI').style.display='none';var fs=document.getElementById('fSt');if(fs)fs.innerHTML='';if(typeof rBn!=='undefined'&&rBn){rBn.disabled=true;rBn.textContent='▶ Build CRM'}var fi=document.getElementById('fIn');if(fi)fi.value='';window.scrollTo({top:0,behavior:'smooth'})};rnRT()}
@@ -2203,7 +2473,7 @@ function rnCLT(){
     '<div style="background:#f3e8ff;border-radius:10px;padding:10px;text-align:center"><div style="font-size:20px;font-weight:800;color:#6b21a8">'+withPh.length+'</div><div style="font-size:11px;color:#6b21a8">📱 Have Phone</div><div style="font-size:9px;color:#6b21a8">Can call</div></div>'+
   '</div>';
   if(!fd.length){w.innerHTML='<div class="em"><div class="ei">📞</div><p>No leads to call</p></div>';document.getElementById('clCnt').textContent='';return}
-  var h='<table><thead><tr><th>Buy %</th><th>Window</th><th>Type</th><th>Name</th><th>Phone</th><th>Agent</th><th>City</th><th>Hours</th><th>📞 Call</th><th>💬 WA</th><th>✅ Status</th><th>Why They\'ll Buy</th></tr></thead><tbody>';
+  var h='<table><thead><tr><th>Buy %</th><th>Window</th><th>Type</th><th>Name</th><th>Phone</th><th>Agent</th><th>City</th><th>Hours</th><th>📞 Call</th><th>💬 WA</th><th>✅ Status</th><th>Nota CEO</th><th>Why They\'ll Buy</th></tr></thead><tbody>';
   fd.forEach(function(l){
     var bClr=l.buyScore>=100?'#dc2626':l.buyScore>=80?'#ea580c':l.buyScore>=60?'#d97706':l.buyScore>=40?'#2563eb':'#6b7280';
     var bLbl=l.buyScore>=100?'🔥🔥🔥':l.buyScore>=80?'🔥🔥':l.buyScore>=60?'🔥':'🌡';
@@ -2220,10 +2490,12 @@ function rnCLT(){
     h+='<td style="font-size:12px">'+l.hrs+'h</td>';
     h+='<td>'+callBtn+'</td><td>'+waBtn+'</td>';
     h+='<td>'+checkInBtns(l)+'</td>';
+    h+=ceoNotaCell(l);
     h+='<td style="max-width:220px">'+reasonsHtml+'</td></tr>';
   });
   h+='</tbody></table>';w.innerHTML=h;
   bindCheckIns(w);
+  bindCeoHecho(w);
   document.getElementById('clCnt').textContent=fd.length+' leads ('+hot.length+' hot, '+warm.length+' warm)';
 }
 function exCL(){if(!callList.length)return;var wb=XLSX.utils.book_new();
@@ -2294,7 +2566,7 @@ function rnCLTable(list,tblId,sumId,cntId,schId,agLabel,desc){
     });
   });
   if(!shown.length){w.innerHTML='<div class="em"><div class="ei">📞</div><p>No leads'+(activeFilter!=='all'?' in this filter':'')+'</p></div>';document.getElementById(cntId).textContent='';return}
-  var h='<table><thead><tr><th>Buy %</th><th>Window</th><th>Type</th><th>Name</th><th>Phone</th><th>Agent</th><th>City</th><th>Hours</th><th>📞 Call</th><th>💬 WA</th><th>✅ Status</th><th>Why They\'ll Buy</th></tr></thead><tbody>';
+  var h='<table><thead><tr><th>Buy %</th><th>Window</th><th>Type</th><th>Name</th><th>Phone</th><th>Agent</th><th>City</th><th>Hours</th><th>📞 Call</th><th>💬 WA</th><th>✅ Status</th><th>Nota CEO</th><th>Why They\'ll Buy</th></tr></thead><tbody>';
   shown.forEach(function(l){
     var bClr=l.buyScore>=100?'#dc2626':l.buyScore>=80?'#ea580c':l.buyScore>=60?'#d97706':l.buyScore>=40?'#2563eb':'#6b7280';
     var bLbl=l.buyScore>=100?'🔥🔥🔥':l.buyScore>=80?'🔥🔥':l.buyScore>=60?'🔥':'🌡';
@@ -2311,10 +2583,12 @@ function rnCLTable(list,tblId,sumId,cntId,schId,agLabel,desc){
     h+='<td style="font-size:12px">'+l.hrs+'h</td>';
     h+='<td>'+callBtn+'</td><td>'+waBtn+'</td>';
     h+='<td>'+checkInBtns(l)+'</td>';
+    h+=ceoNotaCell(l);
     h+='<td style="max-width:220px">'+reasonsHtml+'</td></tr>';
   });
   h+='</tbody></table>';w.innerHTML=h;
   bindCheckIns(w);
+  bindCeoHecho(w);
   var filterLabel=activeFilter==='all'?'':' ['+activeFilter.toUpperCase()+']';
   document.getElementById(cntId).textContent=shown.length+' leads'+filterLabel+' ('+hot.length+' hot, '+warm.length+' warm)';
 }
