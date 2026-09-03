@@ -460,11 +460,13 @@ function properCase(s){
 }
 
 // ═══ ADMIN / AGENT VIEW GATE ═══
-// URL ?v=nancy|jazmin|yoana → agent view (read-only, no upload)
+// URL ?v=jazmin|yoana → agent view (read-only, no upload)
 // otherwise → admin view (requires password 1993, can upload)
+// NOTE: 'nancy' was revoked 2026-09-03 (Nancy removed from platform).
+// A ?v=nancy link now falls through to the password-gated admin view.
 var URL_PARAMS=new URLSearchParams(window.location.search);
-var VIEW_MODE=(URL_PARAMS.get('v')||'').toLowerCase();// 'nancy', 'jazmin', 'yoana', or ''
-if(VIEW_MODE && VIEW_MODE!=='jazmin' && VIEW_MODE!=='nancy' && VIEW_MODE!=='yoana'){VIEW_MODE=''}
+var VIEW_MODE=(URL_PARAMS.get('v')||'').toLowerCase();// 'jazmin', 'yoana', or ''
+if(VIEW_MODE && VIEW_MODE!=='jazmin' && VIEW_MODE!=='yoana'){VIEW_MODE=''}
 var IS_ADMIN=!VIEW_MODE;
 var AGENT_DISPLAY_NAME=VIEW_MODE?VIEW_MODE.charAt(0).toUpperCase()+VIEW_MODE.slice(1):'';
 function agentScope(){return AGENT_DISPLAY_NAME||null}
