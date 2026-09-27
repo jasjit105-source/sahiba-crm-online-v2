@@ -25,7 +25,7 @@ const {
 } = require('./_shared');
 
 // SQL Server proxy config (read from env, fall back to known values)
-const SQL_PROXY_URL  = process.env.SQL_PROXY_URL  || 'https://aggrievedly-spryest-hattie.ngrok-free.dev/V1/query';
+const SQL_PROXY_URL  = process.env.SQL_PROXY_URL  || 'https://mixcalco-tienda-sale-crm.netlify.app/V1/query';
 const SQL_PROXY_AUTH = process.env.SQL_PROXY_AUTH || 'Sahiba_CZSfEghwaD4s';
 
 // VIP & lapsed thresholds

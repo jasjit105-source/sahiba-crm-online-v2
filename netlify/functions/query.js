@@ -12,7 +12,7 @@
 
 const { preflight, requireAuth, unauthorized, badRequest, serverError, parseBody, CORS_HEADERS } = require('./_shared');
 
-const NGROK_BASE = process.env.SQL_NGROK_URL || 'https://aggrievedly-spryest-hattie.ngrok-free.dev';
+const NGROK_BASE = process.env.SQL_NGROK_URL || 'https://mixcalco-tienda-sale-crm.netlify.app';
 const SQL_TOKEN = process.env.SQL_API_TOKEN || 'Sahiba_CZSfEghwaD4s';
 
 exports.handler = async (event) => {
