@@ -123,6 +123,35 @@ CREATE INDEX IF NOT EXISTS idx_sales_fecha ON sales_history(fecha);
 CREATE INDEX IF NOT EXISTS idx_sales_ticket ON sales_history(ticket);
 
 -- ---------------------------------------------------------------------
+-- CEO_TASKS — morning notes from the shop owner (Jessie / CEO)
+-- Isolated from leads.notes / follow_up_status. Agents mark Hecho here.
+-- Matching is by phone_normalized and/or contact_id. Notes are APPENDED
+-- with an America/Mexico_City timestamp — never overwritten.
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ceo_tasks (
+  id               SERIAL PRIMARY KEY,
+  contact_id       TEXT,
+  phone            TEXT,
+  phone_normalized TEXT,
+  name             TEXT,
+  agent            TEXT,                  -- jazmin | nancy | yoana
+  nota_ceo         TEXT,
+  hecho            BOOLEAN DEFAULT FALSE,
+  hecho_por        TEXT,
+  hecho_at         TIMESTAMPTZ,
+  batch_date       DATE,
+  status           TEXT DEFAULT 'open',   -- open | done
+  created_at       TIMESTAMPTZ DEFAULT NOW(),
+  updated_at       TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_ceo_tasks_phone_norm ON ceo_tasks(phone_normalized);
+CREATE INDEX IF NOT EXISTS idx_ceo_tasks_contact ON ceo_tasks(contact_id);
+CREATE INDEX IF NOT EXISTS idx_ceo_tasks_agent ON ceo_tasks(agent);
+CREATE INDEX IF NOT EXISTS idx_ceo_tasks_status ON ceo_tasks(status);
+CREATE INDEX IF NOT EXISTS idx_ceo_tasks_batch ON ceo_tasks(batch_date);
+
+-- ---------------------------------------------------------------------
 -- IMPORT_LOG — track every upload/sync so admin can see history
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS import_log (
