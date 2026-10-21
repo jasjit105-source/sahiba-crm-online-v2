@@ -1033,6 +1033,7 @@ var _custFilter = 'all';     // current filter
 var _custStats = null;       // cached stats
 
 var _styleRes = null;     // active style-search result (null = normal list)
+var _styleView = null;    // exactly what the style table shows (filtered rows + totals)
 function _escH(x){return String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 async function runStyleSearch(){
   var v=(document.getElementById('styleSch').value||'').trim().toUpperCase();
@@ -1049,7 +1050,7 @@ async function runStyleSearch(){
   }
 }
 function clearStyleSearch(){
-  _styleRes=null;
+  _styleRes=null;_styleView=null;
   var i=document.getElementById('styleSch');if(i)i.value='';
   renderCustomerTable();
 }
@@ -1088,6 +1089,7 @@ function renderStyleResults(){
     tickets:rows.reduce(function(s2,b){return s2+(+b.tickets||0)},0),
     amount:rows.reduce(function(s2,b){return s2+(+b.amount||0)},0)};
   var fLabel=_scope||({ag_jazmin:'Jazmin',ag_nancy:'Nancy',ag_yoana:'Yoana',ag_unassigned:'Unassigned',mine:myName||'',vip:'VIP',lapsed:'Lapsed',online:'Online',vestido:'Vestidos',blusa:'Blusas',bata:'Batas'})[_custFilter]||null;
+  _styleView={style:d.style,fLabel:fLabel,rows:rows,tt:tt};
   var html='<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;flex-wrap:wrap;border-bottom:1px solid var(--bd)">'
     +'<span style="font-weight:800;font-size:15px">🔍 '+_escH(d.style)+'</span>'
     +(fLabel?'<span class="ct" style="background:#6366f1;color:#fff">'+_escH(fLabel)+'</span>':'')
@@ -1506,7 +1508,40 @@ function rnCust(){
     return 'Sahiba_Customers_'+seg+'_'+d+'.'+ext;
   }
 
+  function styleExportName(ext){
+    var f=_styleView.fLabel?('_'+String(_styleView.fLabel).replace(/[^A-Za-z0-9]+/g,'')):'';
+    return 'style_'+_styleView.style+f+'_'+new Date().toISOString().slice(0,10)+'.'+ext;
+  }
+  function exportStyleXlsx(){
+    var v=_styleView;
+    var headers=LANG==='es'?['#','Cliente','Teléfono','Agente','Piezas','Tickets','Total Pagado (MXN)','Primera Compra','Última Compra']:['#','Customer','Phone','Agent','Pieces','Tickets','Total Paid (MXN)','First Buy','Last Buy'];
+    var meta=[(LANG==='es'?'Modelo: ':'Style: ')+v.style+(v.fLabel?('  ·  '+(LANG==='es'?'Filtro: ':'Filter: ')+v.fLabel):'')+'  ·  '+v.tt.customers+(LANG==='es'?' compradores':' buyers')+'  ·  '+v.tt.pieces.toLocaleString()+' pcs  ·  '+v.tt.tickets+' tickets  ·  $'+Math.round(v.tt.amount).toLocaleString()];
+    var aoa=[meta,headers].concat(v.rows.map(function(b,i){
+      return [i+1,b.name?properCase(b.name):'—',b.phone||'',b.dispAgent||'—',+b.pieces||0,+b.tickets||0,Math.round(+b.amount||0),String(b.first_buy||'').slice(0,10),String(b.last_buy||'').slice(0,10)];
+    }));
+    var ws=XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols']=[{wch:4},{wch:28},{wch:14},{wch:12},{wch:8},{wch:8},{wch:17},{wch:13},{wch:13}];
+    var wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,ws,String(v.style).slice(0,28)||'Style');
+    XLSX.writeFile(wb,styleExportName('xlsx'));
+  }
+  function exportStylePdf(){
+    if(typeof window.jspdf==='undefined'){alert('PDF library not loaded yet — try again in a moment.');return;}
+    var v=_styleView;var jsPDF=window.jspdf.jsPDF;
+    var doc=new jsPDF({orientation:'portrait',unit:'pt',format:'letter'});
+    doc.setFontSize(16);doc.setFont(undefined,'bold');
+    doc.text((LANG==='es'?'Sahiba — Compradores del Modelo ':'Sahiba — Buyers of Style ')+v.style,40,50);
+    doc.setFontSize(10);doc.setFont(undefined,'normal');doc.setTextColor(100);
+    doc.text((v.fLabel?((LANG==='es'?'Filtro: ':'Filter: ')+v.fLabel+'  ·  '):'')+v.tt.customers+(LANG==='es'?' compradores':' buyers')+'  ·  '+v.tt.pieces.toLocaleString()+' pcs  ·  '+v.tt.tickets+' tickets  ·  $'+Math.round(v.tt.amount).toLocaleString()+'  ·  '+new Date().toLocaleDateString(LANG==='es'?'es-MX':'en-US'),40,68);
+    var headers=LANG==='es'?[['#','Cliente','Teléfono','Agente','Piezas','Tickets','Total','Última Compra']]:[['#','Customer','Phone','Agent','Pieces','Tickets','Total','Last Buy']];
+    var body=v.rows.map(function(b,i){
+      return [i+1,b.name?properCase(b.name):'—',b.phone||'',b.dispAgent||'—',(+b.pieces||0).toLocaleString(),String(+b.tickets||0),'$'+Math.round(+b.amount||0).toLocaleString(),String(b.last_buy||'').slice(0,10)];
+    });
+    doc.autoTable({head:headers,body:body,startY:85,theme:'striped',styles:{fontSize:9,cellPadding:5},headStyles:{fillColor:[99,102,241],textColor:255,fontStyle:'bold'},alternateRowStyles:{fillColor:[248,250,253]},columnStyles:{0:{cellWidth:24},4:{halign:'right'},5:{halign:'center'},6:{halign:'right',cellWidth:70}},margin:{left:40,right:40}});
+    doc.save(styleExportName('pdf'));
+  }
   document.getElementById('custDlXls').onclick = function(){
+    if(_styleRes&&_styleView){exportStyleXlsx();return;}
     var rows = buildExportRows();
     if(!rows.length){ alert(LANG==='es' ? 'No hay clientes para exportar.' : 'No customers to export.'); return; }
     var headers = LANG==='es'
@@ -1523,6 +1558,7 @@ function rnCust(){
   };
 
   document.getElementById('custDlPdf').onclick = function(){
+    if(_styleRes&&_styleView){exportStylePdf();return;}
     var rows = buildExportRows();
     if(!rows.length){ alert(LANG==='es' ? 'No hay clientes para exportar.' : 'No customers to export.'); return; }
     if(typeof window.jspdf === 'undefined'){ alert('PDF library not loaded yet — try again in a moment.'); return; }
