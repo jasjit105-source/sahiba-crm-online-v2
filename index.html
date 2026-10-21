@@ -328,6 +328,7 @@ var I18N = {
   'st.phone':          { en: 'Phone', es: 'Teléfono' },
   'st.clear':          { en: '✕ Clear', es: '✕ Quitar' },
   'st.none':           { en: 'No purchases found for style', es: 'Sin compras del modelo' },
+  'st.none_filter':    { en: 'No buyers of this style match the selected filter', es: 'Ningún comprador de este modelo con el filtro seleccionado' },
   'st.pcs':            { en: 'pcs', es: 'pzs' },
 
   // Customers tab — stat cards
@@ -1055,34 +1056,61 @@ function clearStyleSearch(){
 function renderStyleResults(){
   var w=document.getElementById('custTbl');
   var d=_styleRes;if(!d)return;
-  var rows=d.buyers||[];
-  if(!rows.length){
+  var all=d.buyers||[];
+  var myName=(typeof VIEW_MODE!=='undefined'&&VIEW_MODE)?VIEW_MODE.charAt(0).toUpperCase()+VIEW_MODE.slice(1):null;
+  var _scope=agentScope();
+  var cmap={};(_custData||[]).forEach(function(c){cmap[String(c.phone||'')]=c});
+  function effA(c){return c.effective_agent||c.respond_agent||c.favorite_agent||'Unassigned'}
+  var rows=all.map(function(b){var c=cmap[String(b.phone||'')]||null;return Object.assign({},b,{_c:c,dispAgent:c?effA(c):(String(b.agent||'').trim()||'Unassigned')})});
+  rows=rows.filter(function(b){
+    var c=b._c;
+    if(_scope&&b.dispAgent!==_scope)return false;
+    if(_custFilter==='vip'&&!(c&&c.buyer_tier==='VIP'))return false;
+    if(_custFilter==='lapsed'&&!(c&&c.is_lapsed))return false;
+    if(_custFilter==='online'&&!(c&&c.total_online_orders>0))return false;
+    if(_custFilter==='vestido'&&!(c&&c.favorite_category==='Vestido'))return false;
+    if(_custFilter==='blusa'&&!(c&&c.favorite_category==='Blusa'))return false;
+    if(_custFilter==='bata'&&!(c&&c.favorite_category==='Bata'))return false;
+    if(_custFilter==='mine'&&(!myName||b.dispAgent!==myName))return false;
+    if(_custFilter==='ag_jazmin'&&b.dispAgent!=='Jazmin')return false;
+    if(_custFilter==='ag_nancy'&&b.dispAgent!=='Nancy')return false;
+    if(_custFilter==='ag_yoana'&&b.dispAgent!=='Yoana')return false;
+    if(_custFilter==='ag_unassigned'&&b.dispAgent!=='Unassigned')return false;
+    return true;
+  });
+  if(!all.length){
     w.innerHTML='<div style="padding:30px;text-align:center;color:var(--t2)">'+t('st.none')+' <b>'+_escH(d.style)+'</b><br><button onclick="clearStyleSearch()" style="margin-top:14px;padding:7px 16px;background:var(--s2);border:1px solid var(--bd);border-radius:8px;cursor:pointer;font-weight:600">'+t('st.clear')+'</button></div>';
     document.getElementById('custCnt').textContent='';
     return;
   }
-  var tt=d.totals||{};
+  var tt={customers:rows.length,
+    pieces:rows.reduce(function(s2,b){return s2+(+b.pieces||0)},0),
+    tickets:rows.reduce(function(s2,b){return s2+(+b.tickets||0)},0),
+    amount:rows.reduce(function(s2,b){return s2+(+b.amount||0)},0)};
+  var fLabel=_scope||({ag_jazmin:'Jazmin',ag_nancy:'Nancy',ag_yoana:'Yoana',ag_unassigned:'Unassigned',mine:myName||'',vip:'VIP',lapsed:'Lapsed',online:'Online',vestido:'Vestidos',blusa:'Blusas',bata:'Batas'})[_custFilter]||null;
   var html='<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;flex-wrap:wrap;border-bottom:1px solid var(--bd)">'
     +'<span style="font-weight:800;font-size:15px">🔍 '+_escH(d.style)+'</span>'
+    +(fLabel?'<span class="ct" style="background:#6366f1;color:#fff">'+_escH(fLabel)+'</span>':'')
     +'<span class="ct">'+(tt.customers||0).toLocaleString()+' '+t('st.buyers')+'</span>'
     +'<span class="ct">'+(tt.pieces||0).toLocaleString()+' '+t('st.pcs')+'</span>'
     +'<span class="ct">'+(tt.tickets||0).toLocaleString()+' '+t('st.tickets')+'</span>'
     +'<span class="ct" style="font-weight:800">$'+Math.round(tt.amount||0).toLocaleString()+'</span>'
     +'<button onclick="clearStyleSearch()" style="margin-left:auto;padding:5px 14px;background:var(--s2);border:1px solid var(--bd);border-radius:8px;cursor:pointer;font-weight:600;font-size:12px">'+t('st.clear')+'</button></div>';
+  if(!rows.length){html+='<div style="padding:26px;text-align:center;color:var(--t2)">'+t('st.none_filter')+'</div>';}else{
   html+='<table><thead><tr><th>#</th><th data-i18n="cust.th_customer">Customer</th><th>'+t('st.phone')+'</th><th>'+t('st.agent')+'</th><th style="text-align:right">'+t('st.pieces')+' ↓</th><th style="text-align:center">'+t('st.tickets')+'</th><th style="text-align:right">'+t('st.total')+'</th><th>'+t('st.first')+'</th><th>'+t('st.last')+'</th></tr></thead><tbody>';
   rows.forEach(function(b,i){
     html+='<tr style="cursor:pointer" onclick="showCustomerProfile('+JSON.stringify(b.phone)+')">'
       +'<td style="color:var(--t2)">'+(i+1)+'</td>'
       +'<td><b>'+(_escH(b.name)||'—')+'</b></td>'
       +'<td>'+_escH(b.phone)+'</td>'
-      +'<td>'+(_escH(b.agent)||'—')+'</td>'
+      +'<td>'+(_escH(b.dispAgent)||'—')+'</td>'
       +'<td style="text-align:right;font-weight:800">'+(+b.pieces||0).toLocaleString()+'</td>'
       +'<td style="text-align:center">'+(+b.tickets||0)+'</td>'
       +'<td style="text-align:right;font-weight:700">$'+Math.round(+b.amount||0).toLocaleString()+'</td>'
       +'<td style="color:var(--t2)">'+_escH(String(b.first_buy||'').slice(0,10))+'</td>'
       +'<td style="color:var(--t2)">'+_escH(String(b.last_buy||'').slice(0,10))+'</td></tr>';
   });
-  html+='</tbody></table>';
+  html+='</tbody></table>';}
   w.innerHTML=html;
   document.getElementById('custCnt').textContent=rows.length+' '+t('st.buyers')+' · '+_escH(d.style);
 }
@@ -1409,7 +1437,7 @@ function rnCust(){
     b.onclick = function(){
       _custFilter = b.dataset.cf;
       document.querySelectorAll('[data-cf]').forEach(function(x){x.classList.toggle('a', x.dataset.cf===_custFilter)});
-      renderCustomerTable();
+      if(_styleRes){renderStyleResults()}else{renderCustomerTable()}
     };
   });
   document.getElementById('custSch').oninput = function(){_styleRes=null;renderCustomerTable()};
