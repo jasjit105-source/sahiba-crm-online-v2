@@ -238,7 +238,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--bd);vertical-align:middl
 <button class="nv" data-cf="blusa">👕 <span data-i18n="cust.blusas">Blusas</span></button>
 <button class="nv" data-cf="bata">🥻 <span data-i18n="cust.batas">Batas</span></button>
 </div>
-<input type="text" class="sb" id="custSch" placeholder="Search name or phone..." data-i18n-placeholder="cust.search" style="margin-left:10px">
+<input type="text" class="sb" id="custSch" placeholder="Search name or phone..." data-i18n-placeholder="cust.search" style="margin-left:10px"><input type="text" class="sb" id="styleSch" placeholder="Style # e.g. 517VE" data-i18n-placeholder="cust.style_search" style="margin-left:6px;max-width:160px;text-transform:uppercase" title="Search buyers of a style number (Enter)">
 <div class="tr"><button class="bs bgn" id="custDlXls">⬇️ Excel</button><button class="bs" id="custDlPdf" style="background:#dc2626;color:#fff;border-color:#dc2626;margin-left:4px">📄 PDF</button><button class="bs bsy" id="custRf" style="margin-left:4px">🔄 <span data-i18n="btn.refresh">Refresh</span></button></div>
 </div>
 <div id="custStats" style="display:flex;gap:10px;margin:12px 0;flex-wrap:wrap"></div>
@@ -317,6 +317,18 @@ var I18N = {
   'cust.blusas':       { en: 'Blusas',         es: 'Blusas' },
   'cust.batas':        { en: 'Batas',          es: 'Batas' },
   'cust.search':       { en: 'Search name or phone...', es: 'Buscar nombre o teléfono...' },
+  'cust.style_search': { en: 'Style # e.g. 517VE', es: 'Modelo ej. 517VE' },
+  'st.buyers':         { en: 'buyers', es: 'compradores' },
+  'st.pieces':         { en: 'Pieces', es: 'Piezas' },
+  'st.tickets':        { en: 'Tickets', es: 'Tickets' },
+  'st.total':          { en: 'Total Paid', es: 'Total Pagado' },
+  'st.last':           { en: 'Last Buy', es: 'Última Compra' },
+  'st.first':          { en: 'First Buy', es: 'Primera Compra' },
+  'st.agent':          { en: 'Agent', es: 'Agente' },
+  'st.phone':          { en: 'Phone', es: 'Teléfono' },
+  'st.clear':          { en: '✕ Clear', es: '✕ Quitar' },
+  'st.none':           { en: 'No purchases found for style', es: 'Sin compras del modelo' },
+  'st.pcs':            { en: 'pcs', es: 'pzs' },
 
   // Customers tab — stat cards
   'cust.total':        { en: 'Total Customers', es: 'Total Clientes' },
@@ -1019,6 +1031,61 @@ var _custData = null;        // cached customer list
 var _custFilter = 'all';     // current filter
 var _custStats = null;       // cached stats
 
+var _styleRes = null;     // active style-search result (null = normal list)
+function _escH(x){return String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+async function runStyleSearch(){
+  var v=(document.getElementById('styleSch').value||'').trim().toUpperCase();
+  if(!v){clearStyleSearch();return;}
+  var w=document.getElementById('custTbl');
+  w.innerHTML='<div style="padding:30px;text-align:center;color:var(--t2)">⏳ '+_escH(v)+'...</div>';
+  try{
+    var r=await fetch(API_BASE+'/style-buyers?style='+encodeURIComponent(v));
+    if(!r.ok){var eb={};try{eb=await r.json()}catch(ex){}throw new Error(eb.error||('status '+r.status));}
+    _styleRes=await r.json();
+    renderStyleResults();
+  }catch(e){
+    w.innerHTML='<div style="padding:30px;text-align:center;color:var(--rd)">❌ '+_escH(e.message)+'</div>';
+  }
+}
+function clearStyleSearch(){
+  _styleRes=null;
+  var i=document.getElementById('styleSch');if(i)i.value='';
+  renderCustomerTable();
+}
+function renderStyleResults(){
+  var w=document.getElementById('custTbl');
+  var d=_styleRes;if(!d)return;
+  var rows=d.buyers||[];
+  if(!rows.length){
+    w.innerHTML='<div style="padding:30px;text-align:center;color:var(--t2)">'+t('st.none')+' <b>'+_escH(d.style)+'</b><br><button onclick="clearStyleSearch()" style="margin-top:14px;padding:7px 16px;background:var(--s2);border:1px solid var(--bd);border-radius:8px;cursor:pointer;font-weight:600">'+t('st.clear')+'</button></div>';
+    document.getElementById('custCnt').textContent='';
+    return;
+  }
+  var tt=d.totals||{};
+  var html='<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;flex-wrap:wrap;border-bottom:1px solid var(--bd)">'
+    +'<span style="font-weight:800;font-size:15px">🔍 '+_escH(d.style)+'</span>'
+    +'<span class="ct">'+(tt.customers||0).toLocaleString()+' '+t('st.buyers')+'</span>'
+    +'<span class="ct">'+(tt.pieces||0).toLocaleString()+' '+t('st.pcs')+'</span>'
+    +'<span class="ct">'+(tt.tickets||0).toLocaleString()+' '+t('st.tickets')+'</span>'
+    +'<span class="ct" style="font-weight:800">$'+Math.round(tt.amount||0).toLocaleString()+'</span>'
+    +'<button onclick="clearStyleSearch()" style="margin-left:auto;padding:5px 14px;background:var(--s2);border:1px solid var(--bd);border-radius:8px;cursor:pointer;font-weight:600;font-size:12px">'+t('st.clear')+'</button></div>';
+  html+='<table><thead><tr><th>#</th><th data-i18n="cust.th_customer">Customer</th><th>'+t('st.phone')+'</th><th>'+t('st.agent')+'</th><th style="text-align:right">'+t('st.pieces')+' ↓</th><th style="text-align:center">'+t('st.tickets')+'</th><th style="text-align:right">'+t('st.total')+'</th><th>'+t('st.first')+'</th><th>'+t('st.last')+'</th></tr></thead><tbody>';
+  rows.forEach(function(b,i){
+    html+='<tr style="cursor:pointer" onclick="showCustomerProfile('+JSON.stringify(b.phone)+')">'
+      +'<td style="color:var(--t2)">'+(i+1)+'</td>'
+      +'<td><b>'+(_escH(b.name)||'—')+'</b></td>'
+      +'<td>'+_escH(b.phone)+'</td>'
+      +'<td>'+(_escH(b.agent)||'—')+'</td>'
+      +'<td style="text-align:right;font-weight:800">'+(+b.pieces||0).toLocaleString()+'</td>'
+      +'<td style="text-align:center">'+(+b.tickets||0)+'</td>'
+      +'<td style="text-align:right;font-weight:700">$'+Math.round(+b.amount||0).toLocaleString()+'</td>'
+      +'<td style="color:var(--t2)">'+_escH(String(b.first_buy||'').slice(0,10))+'</td>'
+      +'<td style="color:var(--t2)">'+_escH(String(b.last_buy||'').slice(0,10))+'</td></tr>';
+  });
+  html+='</tbody></table>';
+  w.innerHTML=html;
+  document.getElementById('custCnt').textContent=rows.length+' '+t('st.buyers')+' · '+_escH(d.style);
+}
 async function loadCustomers(){
   var w = document.getElementById('custTbl');
   w.innerHTML = '<div style="padding:30px;text-align:center;color:var(--t2)">⏳ Loading customer intelligence...</div>';
@@ -1345,7 +1412,9 @@ function rnCust(){
       renderCustomerTable();
     };
   });
-  document.getElementById('custSch').oninput = renderCustomerTable;
+  document.getElementById('custSch').oninput = function(){_styleRes=null;renderCustomerTable()};
+  var _ss=document.getElementById('styleSch');
+  if(_ss){_ss.onkeydown=function(e){if(e.key==='Enter')runStyleSearch()};_ss.oninput=function(){if(!_ss.value.trim()&&_styleRes)clearStyleSearch()};}
   document.getElementById('custRf').onclick = loadCustomers;
 
   // ─── Excel + PDF export of currently-visible customers ───

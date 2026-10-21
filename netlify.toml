@@ -53,6 +53,11 @@
   status = 200
 
 [[redirects]]
+  from = "/api/style-buyers"
+  to = "/.netlify/functions/style-buyers"
+  status = 200
+
+[[redirects]]
   from = "/api/customers-list"
   to = "/.netlify/functions/customers-list"
   status = 200
